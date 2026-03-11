@@ -8,59 +8,6 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { TrendingUp, TrendingDown, Minus, Search } from 'lucide-react';
 
-const students = [
-  { 
-    id: 1, 
-    name: 'Arjun Patel', 
-    rating: 1350, 
-    trend: 'up', 
-    change: 30,
-    lessonsCompleted: 12,
-    attendance: 92,
-    lastLesson: '2026-01-14'
-  },
-  { 
-    id: 2, 
-    name: 'Priya Singh', 
-    rating: 1280, 
-    trend: 'stable', 
-    change: 0,
-    lessonsCompleted: 10,
-    attendance: 100,
-    lastLesson: '2026-01-13'
-  },
-  { 
-    id: 3, 
-    name: 'Rohan Kumar', 
-    rating: 1420, 
-    trend: 'up', 
-    change: 45,
-    lessonsCompleted: 15,
-    attendance: 87,
-    lastLesson: '2026-01-15'
-  },
-  { 
-    id: 4, 
-    name: 'Ananya Sharma', 
-    rating: 1190, 
-    trend: 'down', 
-    change: -15,
-    lessonsCompleted: 8,
-    attendance: 75,
-    lastLesson: '2026-01-12'
-  },
-  { 
-    id: 5, 
-    name: 'Vikram Mehta', 
-    rating: 1310, 
-    trend: 'up', 
-    change: 20,
-    lessonsCompleted: 11,
-    attendance: 91,
-    lastLesson: '2026-01-14'
-  },
-];
-
 export default function CoachStudentsPage() {
   const [apiStudents, setApiStudents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,18 +18,16 @@ export default function CoachStudentsPage() {
     }).catch(() => {});
   }, []);
 
-  const displayStudents = apiStudents.length > 0
-    ? apiStudents.map((s: any) => ({
-        id: s._id,
-        name: s.name || '',
-        rating: s.rating || 0,
-        trend: 'stable',
-        change: 0,
-        lessonsCompleted: s.lessonsCompleted || 0,
-        attendance: s.attendance || 0,
-        lastLesson: s.lastLesson || '',
-      }))
-    : students;
+  const displayStudents = apiStudents.map((s: any) => ({
+    id: s._id,
+    name: s.name || '',
+    rating: s.rating || 0,
+    trend: 'stable',
+    change: 0,
+    lessonsCompleted: s.lessonsCompleted || 0,
+    attendance: s.attendance || 0,
+    lastLesson: s.lastLesson || '',
+  }));
 
   const filtered = displayStudents.filter((s: any) =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -118,33 +63,38 @@ export default function CoachStudentsPage() {
           <div className="grid md:grid-cols-4 gap-6 mb-6">
             <Card>
               <p className="text-gray-600 text-sm">Total Students</p>
-              <p className="text-3xl font-bold text-primary-blue">{displayStudents.length || 24}</p>
+              <p className="text-3xl font-bold text-primary-blue">{displayStudents.length}</p>
             </Card>
             <Card>
               <p className="text-gray-600 text-sm">Avg Rating</p>
               <p className="text-3xl font-bold text-primary-blue">
-                {displayStudents.length > 0 && displayStudents[0].rating > 0
+                {displayStudents.length > 0
                   ? Math.round(displayStudents.reduce((s: number, st: any) => s + (st.rating || 0), 0) / displayStudents.length)
-                  : 1310}
+                  : '—'}
               </p>
             </Card>
             <Card>
               <p className="text-gray-600 text-sm">Avg Attendance</p>
               <p className="text-3xl font-bold text-primary-blue">
-                {displayStudents.length > 0 && displayStudents[0].attendance > 0
+                {displayStudents.length > 0
                   ? Math.round(displayStudents.reduce((s: number, st: any) => s + (st.attendance || 0), 0) / displayStudents.length) + '%'
-                  : '89%'}
+                  : '—'}
               </p>
             </Card>
             <Card>
               <p className="text-gray-600 text-sm">Active This Month</p>
-              <p className="text-3xl font-bold text-primary-blue">{displayStudents.length || 22}</p>
+              <p className="text-3xl font-bold text-primary-blue">{displayStudents.length}</p>
             </Card>
           </div>
 
           {/* Student List */}
           <Card>
             <h3 className="text-xl font-heading font-semibold mb-4">Student Roster</h3>
+            {filtered.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500 text-sm">No students assigned yet</p>
+              </div>
+            )}
             <div className="space-y-3">
               {filtered.map((student: any) => (
                 <div key={student.id} className="p-4 bg-primary-offwhite rounded-lg hover:shadow-md transition-shadow">

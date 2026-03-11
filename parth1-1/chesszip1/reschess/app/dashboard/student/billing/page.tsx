@@ -29,66 +29,6 @@ declare global {
   }
 }
 
-// Mock data fallbacks
-const fallbackPlan = {
-  name: 'Premium Chess Coaching',
-  price: 149,
-  billingCycle: 'monthly',
-  nextPayment: '2026-02-15',
-  status: 'active'
-};
-
-const fallbackHistory = [
-  {
-    id: 'INV-2026-001',
-    date: '2026-01-15',
-    amount: 149,
-    description: 'Premium Chess Coaching - January 2026',
-    status: 'paid',
-    method: 'Credit Card (**** 4532)',
-  },
-  {
-    id: 'INV-2025-012',
-    date: '2025-12-15',
-    amount: 149,
-    description: 'Premium Chess Coaching - December 2025',
-    status: 'paid',
-    method: 'Credit Card (**** 4532)',
-  },
-  {
-    id: 'INV-2025-011',
-    date: '2025-11-15',
-    amount: 149,
-    description: 'Premium Chess Coaching - November 2025',
-    status: 'paid',
-    method: 'Credit Card (**** 4532)',
-  },
-  {
-    id: 'INV-2025-010',
-    date: '2025-10-15',
-    amount: 149,
-    description: 'Premium Chess Coaching - October 2025',
-    status: 'paid',
-    method: 'PayPal',
-  }
-];
-
-const upcomingPayments = [
-  {
-    id: 'UP-2026-002',
-    date: '2026-02-15',
-    amount: 149,
-    description: 'Premium Chess Coaching - February 2026',
-    status: 'scheduled'
-  },
-  {
-    id: 'UP-2026-003',
-    date: '2026-03-15',
-    amount: 149,
-    description: 'Premium Chess Coaching - March 2026',
-    status: 'scheduled'
-  }
-];
 
 export default function StudentBillingPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
@@ -119,15 +59,14 @@ export default function StudentBillingPage() {
 
   useEffect(() => { fetchBilling(); }, [fetchBilling]);
 
-  const displayPlan = billing?.subscription ?? fallbackPlan;
-  const displayHistory = billing?.payments?.length > 0
-    ? billing.payments.map((p: any) => ({
-        id: p._id, date: p.paidAt?.split('T')[0] || p.createdAt?.split('T')[0] || '',
-        amount: p.amount, description: p.description || 'Chess Coaching',
-        status: p.status === 'SUCCESS' ? 'paid' : p.status?.toLowerCase() || 'paid',
-        method: 'Razorpay',
-      }))
-    : fallbackHistory;
+  const displayPlan = billing?.subscription ?? null;
+  const displayHistory: any[] = (billing?.payments || []).map((p: any) => ({
+    id: p._id, date: p.paidAt?.split('T')[0] || p.createdAt?.split('T')[0] || '',
+    amount: p.amount, description: p.description || 'Chess Coaching',
+    status: p.status === 'SUCCESS' ? 'paid' : p.status?.toLowerCase() || 'paid',
+    method: 'Razorpay',
+  }));
+  const upcomingPayments: any[] = billing?.upcomingPayments || [];
 
   // ─── Razorpay Payment Handler ───────────────────────────────────
   const handleRazorpayPayment = async (amount: number, desc: string, subscriptionId?: string) => {
@@ -296,32 +235,39 @@ export default function StudentBillingPage() {
           {/* Current Plan Overview */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
             <Card className="lg:col-span-2">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-heading font-semibold mb-2">Current Plan</h3>
-                  <p className="text-2xl sm:text-3xl font-bold text-primary-blue">{displayPlan.name}</p>
-                  <p className="text-gray-600 mt-1">
-                    ₹{displayPlan.price}/{displayPlan.billingCycle}
-                  </p>
-                </div>
-                <Badge variant="success" className="flex items-center">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Active
-                </Badge>
-              </div>
-
-              <div className="bg-primary-offwhite rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Next Payment</p>
-                    <p className="font-semibold">{formatDate(displayPlan.nextPayment)}</p>
+              {displayPlan ? (
+                <>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-heading font-semibold mb-2">Current Plan</h3>
+                      <p className="text-2xl sm:text-3xl font-bold text-primary-blue">{displayPlan.name}</p>
+                      <p className="text-gray-600 mt-1">₹{displayPlan.price}/{displayPlan.billingCycle}</p>
+                    </div>
+                    <Badge variant="success" className="flex items-center">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Active
+                    </Badge>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Amount</p>
-                    <p className="font-semibold text-lg">₹{displayPlan.price}</p>
+                  <div className="bg-primary-offwhite rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">Next Payment</p>
+                        <p className="font-semibold">{displayPlan.nextPayment ? formatDate(displayPlan.nextPayment) : '—'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Amount</p>
+                        <p className="font-semibold text-lg">₹{displayPlan.price}</p>
+                      </div>
+                    </div>
                   </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                  <h3 className="text-lg font-heading font-semibold mb-1">No Active Plan</h3>
+                  <p className="text-sm text-gray-500">Contact admin to set up your subscription</p>
                 </div>
-              </div>
+              )}
             </Card>
 
             <Card>
@@ -329,11 +275,11 @@ export default function StudentBillingPage() {
               <div className="space-y-3">
                 <Button
                   className="w-full bg-green-600 hover:bg-green-700"
-                  onClick={() => handleRazorpayPayment(
+                  onClick={() => displayPlan && handleRazorpayPayment(
                     displayPlan.price,
                     `${displayPlan.name} - Monthly Subscription`
                   )}
-                  disabled={paymentLoading}
+                  disabled={paymentLoading || !displayPlan}
                 >
                   {paymentLoading ? (
                     <>
@@ -360,68 +306,67 @@ export default function StudentBillingPage() {
           </div>
 
           {/* Upcoming Payments */}
-          <Card className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg sm:text-xl font-heading font-semibold">Upcoming Payments</h3>
-              <Badge variant="info">{upcomingPayments.length} scheduled</Badge>
-            </div>
+          {upcomingPayments.length > 0 && (
+            <Card className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg sm:text-xl font-heading font-semibold">Upcoming Payments</h3>
+                <Badge variant="info">{upcomingPayments.length} scheduled</Badge>
+              </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Date</th>
-                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Description</th>
-                    <th className="text-right py-3 px-2 font-semibold text-gray-700">Amount</th>
-                    <th className="text-center py-3 px-2 font-semibold text-gray-700">Status</th>
-                    <th className="text-center py-3 px-2 font-semibold text-gray-700">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {upcomingPayments.map((payment) => (
-                    <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-2">
-                        <div className="flex items-center">
-                          <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                          {formatDate(payment.date)}
-                        </div>
-                      </td>
-                      <td className="py-3 px-2">
-                        <p className="font-medium">{payment.description}</p>
-                        <p className="text-sm text-gray-600">ID: {payment.id}</p>
-                      </td>
-                      <td className="py-3 px-2 text-right">
-                        <span className="font-semibold text-lg">₹{payment.amount}</span>
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        {getStatusBadge(payment.status)}
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          disabled={paymentLoading}
-                          onClick={() => handleRazorpayPayment(
-                            payment.amount,
-                            payment.description
-                          )}
-                        >
-                          {paymentLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <>
-                              <DollarSign className="w-3 h-3 mr-1" />
-                              Pay Now
-                            </>
-                          )}
-                        </Button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-2 font-semibold text-gray-700">Date</th>
+                      <th className="text-left py-3 px-2 font-semibold text-gray-700">Description</th>
+                      <th className="text-right py-3 px-2 font-semibold text-gray-700">Amount</th>
+                      <th className="text-center py-3 px-2 font-semibold text-gray-700">Status</th>
+                      <th className="text-center py-3 px-2 font-semibold text-gray-700">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                  </thead>
+                  <tbody>
+                    {upcomingPayments.map((payment: any) => (
+                      <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-2">
+                          <div className="flex items-center">
+                            <Clock className="w-4 h-4 text-gray-400 mr-2" />
+                            {formatDate(payment.date)}
+                          </div>
+                        </td>
+                        <td className="py-3 px-2">
+                          <p className="font-medium">{payment.description}</p>
+                          <p className="text-sm text-gray-600">ID: {payment.id}</p>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <span className="font-semibold text-lg">₹{payment.amount}</span>
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          {getStatusBadge(payment.status)}
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            disabled={paymentLoading}
+                            onClick={() => handleRazorpayPayment(payment.amount, payment.description)}
+                          >
+                            {paymentLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <>
+                                <DollarSign className="w-3 h-3 mr-1" />
+                                Pay Now
+                              </>
+                            )}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
 
           {/* Payment History */}
           <Card>
@@ -450,6 +395,11 @@ export default function StudentBillingPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {displayHistory.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-sm text-gray-400">No payment history yet</td>
+                    </tr>
+                  )}
                   {displayHistory.map((payment: any) => (
                     <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-2">

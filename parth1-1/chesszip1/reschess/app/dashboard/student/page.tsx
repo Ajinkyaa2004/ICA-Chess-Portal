@@ -8,18 +8,6 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { TrendingUp, Calendar, Video, CheckCircle, HelpCircle, CreditCard, MessageSquare, DollarSign } from 'lucide-react';
 
-const upcomingLessons = [
-  { id: 1, date: '2026-01-16', time: '10:00 AM', coach: 'IM Ramesh Kumar', topic: 'Sicilian Defense' },
-  { id: 2, date: '2026-01-18', time: '03:00 PM', coach: 'FM Priya Sharma', topic: 'Endgame Techniques' },
-];
-
-// Attendance and progress calculations
-const totalLessons = 40;
-const attendedLessons = 35;
-const attendancePercentage = ((attendedLessons / totalLessons) * 100).toFixed(0);
-const studyMaterialsAccessed = 17;
-const studyMaterialsTotal = 20;
-const overallProgress = (((attendedLessons / totalLessons) + (studyMaterialsAccessed / studyMaterialsTotal)) / 2 * 100).toFixed(0);
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -28,6 +16,7 @@ export default function StudentDashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [apiLessons, setApiLessons] = useState<any[]>([]);
   const [apiProgress, setApiProgress] = useState<any>(null);
+  const [apiProfile, setApiProfile] = useState<any>(null);
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(json => {
@@ -39,14 +28,26 @@ export default function StudentDashboard() {
     fetch('/api/customer/progress').then(r => r.ok ? r.json() : null).then(json => {
       if (json?.progress) setApiProgress(json.progress);
     }).catch(() => {});
+    fetch('/api/customer/profile').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.student) setApiProfile(json.data || json.student);
+    }).catch(() => {});
   }, []);
 
-  const displayLessons = apiLessons.length > 0
-    ? apiLessons.filter((l: any) => new Date(l.date) >= new Date()).slice(0, 2).map((l: any) => ({
-        id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
-        coach: l.coachId?.name || '', topic: l.topic || '',
-      }))
-    : upcomingLessons;
+  const displayLessons = apiLessons
+    .filter((l: any) => new Date(l.date) >= new Date())
+    .slice(0, 2)
+    .map((l: any) => ({
+      id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
+      coach: l.coachId?.name || '', topic: l.topic || '',
+    }));
+
+  const batchName = apiProfile?.batchId?.name || apiProfile?.batch?.name || '—';
+  const coachName = apiProfile?.coachId?.name || apiProfile?.coach?.name || '—';
+  const attendance = apiProgress?.attendancePercentage ?? apiProfile?.attendance ?? 0;
+  const overallProgress = apiProgress?.overallProgress ?? 0;
+  const totalLessons = apiProgress?.totalLessons ?? 0;
+  const attendedLessons = apiProgress?.attendedLessons ?? 0;
+  const rating = apiProfile?.rating ?? 0;
 
   const handleRequestReview = () => {
     // Mock API call - in real app, this would send to backend
@@ -79,7 +80,9 @@ export default function StudentDashboard() {
                     <span className="inline-block w-2 h-2 sm:w-3 sm:h-3 bg-green-600 rounded-full animate-pulse flex-shrink-0"></span>
                     <p className="text-xs sm:text-sm font-semibold text-green-900">LIVE CLASS IN PROGRESS</p>
                   </div>
-                  <p className="text-xs sm:text-base text-green-700 truncate">with IM Ramesh Kumar • Intermediate Batch B • Started 15 mins ago</p>
+                  <p className="text-xs sm:text-base text-green-700 truncate">
+                    {coachName !== '—' ? `with ${coachName}` : ''}{batchName !== '—' ? ` • ${batchName}` : ''}
+                  </p>
                 </div>
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
@@ -100,11 +103,11 @@ export default function StudentDashboard() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-gray-600 text-xs sm:text-sm truncate">My Batch</p>
-                  <p className="text-lg sm:text-xl font-bold text-primary-blue truncate">Intermediate B</p>
-                  <p className="text-gray-500 text-xs sm:text-sm mt-1">IM Ramesh Kumar</p>
+                  <p className="text-lg sm:text-xl font-bold text-primary-blue truncate">{batchName}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm mt-1">{coachName}</p>
                 </div>
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold">
-                  I
+                  {batchName !== '—' ? batchName.charAt(0) : '?'}
                 </div>
               </div>
             </Card>
@@ -113,7 +116,7 @@ export default function StudentDashboard() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-gray-600 text-xs sm:text-sm truncate">Attendance</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-primary-blue">{attendancePercentage}%</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-primary-blue">{attendance}%</p>
                   <p className="text-gray-500 text-xs sm:text-sm mt-1">{attendedLessons} of {totalLessons} lessons</p>
                 </div>
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -139,11 +142,8 @@ export default function StudentDashboard() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-gray-600 text-xs sm:text-sm truncate">Current Rating</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-primary-blue">1350</p>
-                  <p className="text-green-600 text-xs sm:text-sm flex items-center mt-1">
-                    <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
-                    +30 this month
-                  </p>
+                  <p className="text-2xl sm:text-3xl font-bold text-primary-blue">{rating || '—'}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm mt-1">Chess rating</p>
                 </div>
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
@@ -160,6 +160,9 @@ export default function StudentDashboard() {
                 <Button variant="ghost" size="sm">View All</Button>
               </div>
 
+              {displayLessons.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">No upcoming lessons scheduled</p>
+              )}
               <div className="space-y-3">
                 {displayLessons.map((lesson: any) => (
                   <div key={lesson.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-4 bg-primary-offwhite rounded-lg">

@@ -7,72 +7,10 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { Users, Calendar, Video, BookOpen, Clock, AlertCircle, HelpCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Calendar, Video, BookOpen, Clock, AlertCircle, HelpCircle } from 'lucide-react';
 
-// Mock data - Only ASSIGNED demos and batches
-const assignedDemos = [
-  { id: 1, date: '2026-01-18', time: '10:00 AM', studentName: 'Arjun Patel', studentAge: 12, status: 'scheduled', meetingLink: 'https://zoom.us/j/123456789' },
-  { id: 2, date: '2026-01-20', time: '03:00 PM', studentName: 'Priya Singh', studentAge: 10, status: 'scheduled', meetingLink: null },
-];
-
-// Mock review session requests
-const reviewRequests = [
-  {
-    id: 1,
-    studentName: 'Arjun Patel',
-    requestedBy: 'Student',
-    topic: 'Sicilian Defense',
-    description: 'I am struggling with the Sicilian Defense opening. Need help understanding the key moves and strategies.',
-    urgency: 'high',
-    preferredTime: 'Weekday evenings',
-    requestDate: '2026-01-15',
-    status: 'pending'
-  },
-  {
-    id: 2,
-    studentName: 'Priya Singh',
-    requestedBy: 'Parent',
-    topic: 'Endgame Techniques',
-    description: 'My daughter needs extra practice with basic endgames, especially king and pawn endings.',
-    urgency: 'normal',
-    preferredTime: 'Saturday morning',
-    requestDate: '2026-01-14',
-    status: 'pending'
-  },
-  {
-    id: 3,
-    studentName: 'Rohan Kumar',
-    requestedBy: 'Student',
-    topic: 'Tactical Puzzles',
-    description: 'Having trouble with complex tactical combinations. Need review of pattern recognition.',
-    urgency: 'urgent',
-    preferredTime: 'Any time this week',
-    requestDate: '2026-01-16',
-    status: 'pending'
-  }
-];
-
-const assignedBatches = [
-  { id: 1, name: 'Beginners Batch A', studentCount: 8, level: 'Beginner', nextClass: '2026-01-18 04:00 PM' },
-  { id: 2, name: 'Intermediate Batch B', studentCount: 6, level: 'Intermediate', nextClass: '2026-01-19 10:00 AM' },
-  { id: 3, name: '1-1 Sessions', studentCount: 4, level: 'Mixed', nextClass: '2026-01-18 02:00 PM' },
-];
-
-const todaysClasses = [
-  { time: '10:00 AM', type: 'Demo', student: 'Arjun Patel', hasLink: true, link: 'https://zoom.us/j/123456789' },
-  { time: '02:00 PM', type: '1-1', student: 'Rohan Kumar', hasLink: true, link: 'https://zoom.us/j/987654321' },
-  { time: '04:00 PM', type: 'Group', student: 'Beginners Batch A', hasLink: false, link: '' },
-];
-
-const _upcomingDemos = assignedDemos.filter(demo => demo.status === 'scheduled').length;
-const _totalBatches = assignedBatches.length;
-const todaysClassCount = todaysClasses.length;
-const pendingReviewRequests = reviewRequests.filter(req => req.status === 'pending').length;
 
 export default function CoachDashboard() {
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [scheduleForm, setScheduleForm] = useState({ date: '', time: '', meetingLink: '' });
   const [apiDemos, setApiDemos] = useState<any[]>([]);
   const [apiBatches, setApiBatches] = useState<any[]>([]);
   const [apiLessons, setApiLessons] = useState<any[]>([]);
@@ -94,35 +32,22 @@ export default function CoachDashboard() {
   }, []);
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const displayDemos = apiDemos.length > 0 ? apiDemos : assignedDemos;
-  const displayBatches = apiBatches.length > 0 ? apiBatches.map((b: any) => ({
-    id: b._id, name: b.name, studentCount: b.studentIds?.length || 0, level: b.level || '', nextClass: ''
-  })) : assignedBatches;
-  const displayLessons = apiLessons.length > 0
-    ? apiLessons.filter((l: any) => l.date && l.date.split('T')[0] === todayStr).map((l: any) => ({
-        time: l.startTime || '', type: l.batchId?.type === '1-1' ? '1-1' : 'Group',
-        student: l.batchId?.name || 'Batch', hasLink: false, link: '',
-      }))
-    : todaysClasses;
+  const displayDemos = apiDemos;
+  const displayBatches = apiBatches.map((b: any) => ({
+    id: b._id, name: b.name, studentCount: b.studentIds?.length || 0, level: b.level || '', nextClass: '',
+  }));
+  const displayLessons = apiLessons
+    .filter((l: any) => l.date && l.date.split('T')[0] === todayStr)
+    .map((l: any) => ({
+      time: l.startTime || '', type: l.batchId?.type === '1-1' ? '1-1' : 'Group',
+      student: l.batchId?.name || 'Batch', hasLink: !!l.meetingLink, link: l.meetingLink || '',
+    }));
 
-  const upcomingDemos = displayDemos.filter((d: any) => d.status === 'scheduled' || d.status === 'BOOKED').length;
+  const upcomingDemos = displayDemos.filter((d: any) => d.status === 'BOOKED' || d.status === 'RESCHEDULED').length;
   const totalBatches = displayBatches.length;
   const todaysClassCount = displayLessons.length;
-  const pendingReviewRequests = reviewRequests.filter(req => req.status === 'pending').length;
+  const pendingReviewRequests = 0;
 
-  const handleScheduleReview = () => {
-    // Mock API call - in real app, this would send to backend
-    console.log('Review session scheduled:', { ...selectedRequest, ...scheduleForm });
-    alert(`Review session scheduled for ${selectedRequest.studentName}! Meeting link will be sent to student/parent.`);
-    setShowScheduleModal(false);
-    setSelectedRequest(null);
-    setScheduleForm({ date: '', time: '', meetingLink: '' });
-  };
-
-  const openScheduleModal = (request: any) => {
-    setSelectedRequest(request);
-    setShowScheduleModal(true);
-  };
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
       <Sidebar role="coach" />
@@ -225,61 +150,10 @@ export default function CoachDashboard() {
                 <Badge variant="warning">{pendingReviewRequests} Pending</Badge>
               </div>
 
-              {reviewRequests.length > 0 ? (
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {reviewRequests.filter(req => req.status === 'pending').map((request) => (
-                    <div key={request.id} className="p-3 bg-primary-offwhite rounded-lg border-l-4 border-orange-400">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-sm truncate">{request.studentName}</p>
-                          <p className="text-xs text-gray-600">Requested by: {request.requestedBy}</p>
-                        </div>
-                        <Badge 
-                          variant={
-                            request.urgency === 'urgent' ? 'error' :
-                            request.urgency === 'high' ? 'warning' : 'info'
-                          } 
-                          className="flex-shrink-0 ml-2 text-xs"
-                        >
-                          {request.urgency}
-                        </Badge>
-                      </div>
-                      
-                      <div className="mb-2">
-                        <p className="text-xs font-medium text-gray-700">Topic: {request.topic}</p>
-                        <p className="text-xs text-gray-600 line-clamp-2 mt-1">{request.description}</p>
-                      </div>
-                      
-                      {request.preferredTime && (
-                        <p className="text-xs text-gray-600 mb-2">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          Preferred: {request.preferredTime}
-                        </p>
-                      )}
-                      
-                      <div className="flex space-x-2">
-                        <Button 
-                          size="sm" 
-                          className="flex-1 text-xs bg-green-600 hover:bg-green-700"
-                          onClick={() => openScheduleModal(request)}
-                        >
-                          <Calendar className="w-3 h-3 mr-1" />
-                          Schedule
-                        </Button>
-                        <Button size="sm" variant="outline" className="flex-1 text-xs">
-                          <XCircle className="w-3 h-3 mr-1" />
-                          Decline
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6">
-                  <HelpCircle className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">No review requests</p>
-                </div>
-              )}
+              <div className="text-center py-6">
+                <HelpCircle className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">No review requests</p>
+              </div>
             </Card>
 
             {/* Assigned Demos */}
@@ -488,111 +362,6 @@ export default function CoachDashboard() {
         </main>
       </div>
 
-      {/* Schedule Review Session Modal */}
-      {showScheduleModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-md w-full">
-            <h3 className="text-xl font-heading font-bold text-primary-blue mb-4">
-              Schedule Review Session
-            </h3>
-            
-            <div className="space-y-4">
-              {/* Request Details */}
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <h4 className="font-semibold text-gray-900 mb-2">Request Details</h4>
-                <div className="space-y-1 text-sm">
-                  <p><strong>Student:</strong> {selectedRequest.studentName}</p>
-                  <p><strong>Requested by:</strong> {selectedRequest.requestedBy}</p>
-                  <p><strong>Topic:</strong> {selectedRequest.topic}</p>
-                  <p><strong>Description:</strong> {selectedRequest.description}</p>
-                  <p><strong>Urgency:</strong> 
-                    <Badge 
-                      variant={
-                        selectedRequest.urgency === 'urgent' ? 'error' :
-                        selectedRequest.urgency === 'high' ? 'warning' : 'info'
-                      } 
-                      className="ml-2 text-xs"
-                    >
-                      {selectedRequest.urgency}
-                    </Badge>
-                  </p>
-                  {selectedRequest.preferredTime && (
-                    <p><strong>Preferred Time:</strong> {selectedRequest.preferredTime}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Schedule Form */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date *
-                </label>
-                <input
-                  type="date"
-                  value={scheduleForm.date}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, date: e.target.value })}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Time *
-                </label>
-                <input
-                  type="time"
-                  value={scheduleForm.time}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, time: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Zoom Meeting Link *
-                </label>
-                <input
-                  type="url"
-                  value={scheduleForm.meetingLink}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, meetingLink: e.target.value })}
-                  placeholder="https://zoom.us/j/123456789"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
-                />
-              </div>
-
-              <div className="bg-green-50 p-3 rounded-lg">
-                <p className="text-sm text-green-700">
-                  <strong>Note:</strong> Once scheduled, the student/parent will receive an email notification 
-                  with the meeting details and Zoom link.
-                </p>
-              </div>
-
-              <div className="flex space-x-3 pt-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setShowScheduleModal(false);
-                    setSelectedRequest(null);
-                    setScheduleForm({ date: '', time: '', meetingLink: '' });
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                  onClick={handleScheduleReview}
-                  disabled={!scheduleForm.date || !scheduleForm.time || !scheduleForm.meetingLink.trim()}
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Schedule Session
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }

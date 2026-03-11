@@ -9,55 +9,8 @@ import Button from '@/components/ui/Button';
 import { DollarSign, TrendingUp, Calendar, Download, ChevronRight, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const earningsData = [
-  { month: 'Jan', earnings: 542 },
-  { month: 'Feb', earnings: 627 },
-  { month: 'Mar', earnings: 578 },
-  { month: 'Apr', earnings: 699 },
-  { month: 'May', earnings: 747 },
-];
-
-const payoutHistory = [
-  { 
-    id: 1, 
-    month: 'January', 
-    date: '2026-01-01', 
-    amount: 747, 
-    status: 'paid',
-    breakdown: {
-      regularClasses: { count: 35, rate: 18, amount: 632 },
-      demos: { count: 4, rate: 24, amount: 96 },
-      makeupClasses: { count: 1, rate: 18, amount: 18 }
-    }
-  },
-  { 
-    id: 2, 
-    month: 'December', 
-    date: '2025-12-01', 
-    amount: 699, 
-    status: 'paid',
-    breakdown: {
-      regularClasses: { count: 32, rate: 18, amount: 578 },
-      demos: { count: 5, rate: 24, amount: 120 },
-      makeupClasses: { count: 0, rate: 18, amount: 0 }
-    }
-  },
-  { 
-    id: 3, 
-    month: 'November', 
-    date: '2025-11-01', 
-    amount: 614, 
-    status: 'paid',
-    breakdown: {
-      regularClasses: { count: 30, rate: 18, amount: 542 },
-      demos: { count: 3, rate: 24, amount: 72 },
-      makeupClasses: { count: 0, rate: 18, amount: 0 }
-    }
-  },
-];
-
 export default function CoachEarningsPage() {
-  const [selectedPayout, setSelectedPayout] = useState<typeof payoutHistory[0] | null>(null);
+  const [selectedPayout, setSelectedPayout] = useState<any | null>(null);
   const [showChart, setShowChart] = useState(false);
   const [apiEarnings, setApiEarnings] = useState<any>(null);
 
@@ -67,10 +20,9 @@ export default function CoachEarningsPage() {
     }).catch(() => {});
   }, []);
 
-  const displayPayouts = apiEarnings?.payouts?.length > 0 ? apiEarnings.payouts : payoutHistory;
-  const displayChartData = apiEarnings?.monthlyData?.length > 0 ? apiEarnings.monthlyData : earningsData;
-  const currentMonthEarnings = apiEarnings?.currentMonth ?? 747;
-  const _totalEarnings = apiEarnings?.total ?? 3193;
+  const displayPayouts: any[] = apiEarnings?.payouts || [];
+  const displayChartData: any[] = apiEarnings?.monthlyData || [];
+  const currentMonthEarnings = apiEarnings?.currentMonth ?? 0;
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
@@ -91,10 +43,7 @@ export default function CoachEarningsPage() {
                 <div>
                   <p className="text-gray-600 text-sm">This Month</p>
                   <p className="text-3xl font-bold text-primary-blue">₹{currentMonthEarnings}</p>
-                  <p className="text-green-600 text-sm flex items-center mt-1">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    +12% from last month
-                  </p>
+                  <p className="text-gray-500 text-sm mt-1">Current month</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <DollarSign className="w-6 h-6 text-green-600" />
@@ -106,7 +55,7 @@ export default function CoachEarningsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-600 text-sm">Total Lessons</p>
-                  <p className="text-3xl font-bold text-primary-blue">48</p>
+                  <p className="text-3xl font-bold text-primary-blue">{apiEarnings?.totalLessons ?? 0}</p>
                   <p className="text-gray-500 text-sm mt-1">This month</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -133,7 +82,7 @@ export default function CoachEarningsPage() {
                 <div>
                   <p className="text-gray-600 text-sm">Next Payout</p>
                   <p className="text-3xl font-bold text-primary-blue">₹{currentMonthEarnings}</p>
-                  <p className="text-gray-500 text-sm mt-1">Feb 1, 2026</p>
+                  <p className="text-gray-500 text-sm mt-1">1st of next month</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                   <Calendar className="w-6 h-6 text-orange-600" />
@@ -152,6 +101,9 @@ export default function CoachEarningsPage() {
                   Export
                 </Button>
               </div>
+              {displayPayouts.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-6">No payout history yet</p>
+              )}
               <div className="space-y-3">
                 {displayPayouts.map((payout: any) => (
                   <div key={payout.id} className="flex items-center justify-between p-4 bg-primary-offwhite rounded-lg hover:bg-gray-50 transition-all">
@@ -197,18 +149,24 @@ export default function CoachEarningsPage() {
               </Button>
             </div>
             
-            {showChart && (
+            {showChart && displayChartData.length > 0 && (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={displayChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
+                  <Tooltip formatter={(value) => `₹${Number(value).toLocaleString()}`} />
                   <Bar dataKey="earnings" fill="#FC8A24" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
-            
+
+            {showChart && displayChartData.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                <p className="text-sm">No earnings data yet</p>
+              </div>
+            )}
+
             {!showChart && (
               <div className="text-center py-12 text-gray-500">
                 <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-30" />

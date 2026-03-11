@@ -18,14 +18,6 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
   setTimeout(() => el.remove(), 3000);
 }
 
-const mockPreviousBroadcasts = [
-  { id: 1, title: 'Tournament Registration Open', recipients: 'All Students', filters: 'Batch: All', date: '2026-01-14', time: '10:00 AM', status: 'sent', delivered: 45, type: 'Email & Push' },
-  { id: 2, title: 'New Coach Introduction', recipients: 'Level: Intermediate', filters: 'Level: Intermediate', date: '2026-01-12', time: '3:00 PM', status: 'sent', delivered: 18, type: 'Push' },
-  { id: 3, title: 'Holiday Schedule Update', recipients: 'Type: Group Classes', filters: 'Type: Group', date: '2026-01-10', time: '9:00 AM', status: 'sent', delivered: 32, type: 'Email' },
-  { id: 4, title: 'Payment Reminder', recipients: 'Status: Payment Pending', filters: 'Payment: Pending', date: '2026-01-08', time: '11:00 AM', status: 'sent', delivered: 5, type: 'Email & SMS' },
-  { id: 5, title: 'Demo Followup', recipients: 'Timezone: IST Morning', filters: 'Timezone: IST AM', date: '2026-01-05', time: '2:00 PM', status: 'sent', delivered: 12, type: 'Email' },
-];
-
 export default function AdminBroadcastPage() {
   const [messageType, setMessageType] = useState<string[]>(['email']);
   const [recipientType, setRecipientType] = useState('all');
@@ -37,14 +29,16 @@ export default function AdminBroadcastPage() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [apiBroadcasts, setApiBroadcasts] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<{ totalStudents: number; totalCoaches: number } | null>(null);
 
-  // Fetch previous broadcasts from API
   useEffect(() => {
     fetch('/api/broadcasts')
       .then(r => r.ok ? r.json() : null)
-      .then(json => {
-        if (json?.data) setApiBroadcasts(json.data);
-      })
+      .then(json => { if (json?.data) setApiBroadcasts(json.data); })
+      .catch(() => {});
+    fetch('/api/analytics')
+      .then(r => r.ok ? r.json() : null)
+      .then(json => { if (json?.data || json) setAnalytics(json?.data || json); })
       .catch(() => {});
   }, []);
 
@@ -257,7 +251,13 @@ export default function AdminBroadcastPage() {
 
                   <p className="text-xs text-gray-600 mt-3">
                     Estimated reach: <strong className="text-primary-blue">
-                      {recipientType === 'all' ? '120' : recipientType === 'students' ? '45' : recipientType === 'parents' ? '45' : '12'} recipients
+                      {analytics
+                        ? (recipientType === 'coaches'
+                            ? analytics.totalCoaches
+                            : recipientType === 'students' || recipientType === 'parents'
+                              ? analytics.totalStudents
+                              : (analytics.totalStudents + analytics.totalCoaches + 1))
+                        : '—'} recipients
                     </strong>
                   </p>
                 </div>
@@ -317,19 +317,19 @@ export default function AdminBroadcastPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs sm:text-sm text-gray-600">All Users</span>
-                    <Badge variant="info">120</Badge>
+                    <Badge variant="info">{analytics ? analytics.totalStudents + analytics.totalCoaches + 1 : '—'}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs sm:text-sm text-gray-600">Students</span>
-                    <Badge variant="info">45</Badge>
+                    <Badge variant="info">{analytics ? analytics.totalStudents : '—'}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs sm:text-sm text-gray-600">Parents</span>
-                    <Badge variant="info">45</Badge>
+                    <Badge variant="info">{analytics ? analytics.totalStudents : '—'}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs sm:text-sm text-gray-600">Coaches</span>
-                    <Badge variant="info">12</Badge>
+                    <Badge variant="info">{analytics ? analytics.totalCoaches : '—'}</Badge>
                   </div>
                 </div>
               </Card>
@@ -339,15 +339,17 @@ export default function AdminBroadcastPage() {
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">This Month</p>
-                    <p className="text-xl sm:text-2xl font-bold text-primary-blue">15</p>
+                    <p className="text-xl sm:text-2xl font-bold text-primary-blue">
+                      {apiBroadcasts.filter(b => {
+                        const d = new Date(b.createdAt);
+                        const now = new Date();
+                        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                      }).length}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">Total Sent</p>
-                    <p className="text-xl sm:text-2xl font-bold text-primary-blue">89</p>
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Avg. Delivered</p>
-                    <p className="text-xl sm:text-2xl font-bold text-green-600">96%</p>
+                    <p className="text-xl sm:text-2xl font-bold text-primary-blue">{apiBroadcasts.length}</p>
                   </div>
                 </div>
               </Card>
@@ -371,37 +373,30 @@ export default function AdminBroadcastPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(apiBroadcasts.length > 0
-                    ? apiBroadcasts.map((b: any) => ({
-                        id: b._id || b.id,
-                        title: b.title,
-                        filters: (b.targetRoles || []).join(', '),
-                        date: b.createdAt ? new Date(b.createdAt).toLocaleDateString() : '',
-                        time: b.createdAt ? new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-                        delivered: b.readBy?.length || 0,
-                        type: 'Push',
-                      }))
-                    : mockPreviousBroadcasts
-                  ).map((broadcast: any) => (
-                    <tr key={broadcast.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  {apiBroadcasts.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-sm text-gray-400">No broadcasts sent yet</td>
+                    </tr>
+                  ) : apiBroadcasts.map((b: any) => (
+                    <tr key={b._id || b.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-3">
-                        <p className="font-semibold text-gray-900 text-sm">{broadcast.title}</p>
+                        <p className="font-semibold text-gray-900 text-sm">{b.title}</p>
                       </td>
                       <td className="py-3 px-3">
-                        <p className="text-xs text-gray-600">{broadcast.filters}</p>
+                        <p className="text-xs text-gray-600">{(b.targetRoles || []).join(', ')}</p>
                       </td>
                       <td className="py-3 px-3">
-                        <p className="text-xs text-gray-900">{broadcast.date}</p>
-                        <p className="text-xs text-gray-500">{broadcast.time}</p>
+                        <p className="text-xs text-gray-900">{b.createdAt ? new Date(b.createdAt).toLocaleDateString() : ''}</p>
+                        <p className="text-xs text-gray-500">{b.createdAt ? new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</p>
                       </td>
                       <td className="py-3 px-3">
                         <div className="flex items-center space-x-1">
                           <CheckCircle className="w-3 h-3 text-green-600" />
-                          <span className="text-sm font-medium text-green-600">{broadcast.delivered}</span>
+                          <span className="text-sm font-medium text-green-600">{b.readBy?.length || 0}</span>
                         </div>
                       </td>
                       <td className="py-3 px-3">
-                        <Badge variant="info" className="text-xs">{broadcast.type}</Badge>
+                        <Badge variant="info" className="text-xs">Push</Badge>
                       </td>
                     </tr>
                   ))}

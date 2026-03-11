@@ -8,50 +8,6 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { Calendar, Clock, Video } from 'lucide-react';
 
-const upcomingLessons = [
-  { 
-    id: 1, 
-    date: '2026-01-16', 
-    time: '10:00 AM', 
-    coach: 'IM Ramesh Kumar', 
-    status: 'confirmed',
-    hasZoomLink: true
-  },
-  { 
-    id: 2, 
-    date: '2026-01-18', 
-    time: '03:00 PM', 
-    coach: 'FM Priya Sharma', 
-    status: 'confirmed',
-    hasZoomLink: true
-  },
-  { 
-    id: 3, 
-    date: '2026-01-20', 
-    time: '11:00 AM', 
-    coach: 'IM Ramesh Kumar', 
-    status: 'pending',
-    hasZoomLink: false
-  },
-];
-
-const pastLessons = [
-  { 
-    id: 4, 
-    date: '2026-01-14', 
-    time: '10:00 AM', 
-    coach: 'IM Ramesh Kumar', 
-    status: 'completed'
-  },
-  { 
-    id: 5, 
-    date: '2026-01-12', 
-    time: '03:00 PM', 
-    coach: 'FM Priya Sharma', 
-    status: 'completed'
-  },
-];
-
 export default function StudentLessonsPage() {
   const [apiLessons, setApiLessons] = useState<any[]>([]);
 
@@ -62,18 +18,18 @@ export default function StudentLessonsPage() {
   }, []);
 
   const today = new Date();
-  const displayUpcoming = apiLessons.length > 0
-    ? apiLessons.filter((l: any) => new Date(l.date) >= today).map((l: any) => ({
-        id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
-        coach: l.coachId?.name || '', status: 'confirmed', hasZoomLink: !!l.meetingLink,
-      }))
-    : upcomingLessons;
-  const displayPast = apiLessons.length > 0
-    ? apiLessons.filter((l: any) => new Date(l.date) < today).map((l: any) => ({
-        id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
-        coach: l.coachId?.name || '', status: l.status === 'COMPLETED' ? 'completed' : 'missed',
-      }))
-    : pastLessons;
+  const displayUpcoming = apiLessons
+    .filter((l: any) => new Date(l.date) >= today)
+    .map((l: any) => ({
+      id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
+      coach: l.coachId?.name || '', status: 'confirmed', hasZoomLink: !!l.meetingLink,
+    }));
+  const displayPast = apiLessons
+    .filter((l: any) => new Date(l.date) < today)
+    .map((l: any) => ({
+      id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
+      coach: l.coachId?.name || '', status: l.status === 'COMPLETED' ? 'completed' : 'missed',
+    }));
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
@@ -90,6 +46,9 @@ export default function StudentLessonsPage() {
           {/* Upcoming Lessons */}
           <Card className="mb-6">
             <h3 className="text-xl font-heading font-semibold mb-4">Upcoming Lessons</h3>
+            {displayUpcoming.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-6">No upcoming lessons scheduled</p>
+            )}
             <div className="space-y-3">
               {displayUpcoming.map((lesson: any) => (
                 <div key={lesson.id} className="flex items-center justify-between p-4 bg-primary-offwhite rounded-lg">
@@ -130,6 +89,9 @@ export default function StudentLessonsPage() {
           {/* Past Lessons */}
           <Card>
             <h3 className="text-xl font-heading font-semibold mb-4">Past Lessons</h3>
+            {displayPast.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-6">No past lessons yet</p>
+            )}
             <div className="space-y-3">
               {displayPast.map((lesson: any) => (
                 <div key={lesson.id} className="flex items-center justify-between p-4 bg-primary-offwhite rounded-lg">
