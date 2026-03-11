@@ -135,19 +135,19 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm font-semibold text-gray-700 mb-3 text-center">Test Accounts (Password: Welcome@123)</p>
+          <p className="text-sm font-semibold text-gray-700 mb-3 text-center">Test Accounts</p>
           <div className="space-y-2 text-xs">
             <div className="p-2 bg-orange-50 rounded border border-orange-200">
-              <p className="font-semibold text-orange-900">Admin:</p>
-              <p className="text-orange-700">admin@ica.com</p>
+              <p className="font-semibold text-orange-900">Admin: admin@ica.com</p>
+              <p className="text-orange-700">Password: Admin@1234</p>
             </div>
             <div className="p-2 bg-purple-50 rounded border border-purple-200">
-              <p className="font-semibold text-purple-900">Coach:</p>
-              <p className="text-purple-700">coach.ramesh@ica.com</p>
+              <p className="font-semibold text-purple-900">Coach: coach@ica.com</p>
+              <p className="text-purple-700">Password: Coach@1234</p>
             </div>
             <div className="p-2 bg-blue-50 rounded border border-blue-200">
-              <p className="font-semibold text-blue-900">Customer (Student/Parent):</p>
-              <p className="text-blue-700">arjun.parent@email.com</p>
+              <p className="font-semibold text-blue-900">Student: student@ica.com</p>
+              <p className="text-blue-700">Password: Student@1234</p>
             </div>
           </div>
         </div>
