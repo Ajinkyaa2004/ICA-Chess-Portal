@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
@@ -8,7 +7,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { CheckCircle, AlertCircle, Heart, Clock, Zap, Users, BookOpen, Lock, ChevronRight, Award, Loader2, Calendar } from 'lucide-react';
+import { CheckCircle, Heart, Clock, Zap, Users, BookOpen, Lock, ChevronRight, Award, Loader2, Calendar } from 'lucide-react';
 
 // Mock demo data - would come from API in real app
 const demoOutcome = {
@@ -97,7 +96,7 @@ export default function CustomerDemosPage() {
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
-      <Sidebar role="student" />
+      <Sidebar role="customer" />
 
       <div className="flex-1">
         <DashboardHeader userName={demoOutcome.parent} userRole="Student" />

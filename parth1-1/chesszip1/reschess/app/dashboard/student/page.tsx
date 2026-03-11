@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -24,12 +24,29 @@ const overallProgress = (((attendedLessons / totalLessons) + (studyMaterialsAcce
 export default function StudentDashboard() {
   const router = useRouter();
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewRequest, setReviewRequest] = useState({
-    topic: '',
-    description: '',
-    urgency: 'normal',
-    preferredTime: ''
-  });
+  const [reviewRequest, setReviewRequest] = useState({ topic: '', description: '', urgency: 'normal', preferredTime: '' });
+  const [profile, setProfile] = useState<any>(null);
+  const [apiLessons, setApiLessons] = useState<any[]>([]);
+  const [apiProgress, setApiProgress] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.user) setProfile(json.user);
+    }).catch(() => {});
+    fetch('/api/customer/lessons').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.lessons) setApiLessons(json.data || json.lessons);
+    }).catch(() => {});
+    fetch('/api/customer/progress').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.progress) setApiProgress(json.progress);
+    }).catch(() => {});
+  }, []);
+
+  const displayLessons = apiLessons.length > 0
+    ? apiLessons.filter((l: any) => new Date(l.date) >= new Date()).slice(0, 2).map((l: any) => ({
+        id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
+        coach: l.coachId?.name || '', topic: l.topic || '',
+      }))
+    : upcomingLessons;
 
   const handleRequestReview = () => {
     // Mock API call - in real app, this would send to backend
@@ -40,10 +57,10 @@ export default function StudentDashboard() {
   };
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
-      <Sidebar role="student" />
+      <Sidebar role="customer" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Arjun Patel" userRole="Student" />
+        <DashboardHeader userName={profile?.name || 'Student'} userRole="customer" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           <h1 className="text-2xl sm:text-3xl font-heading font-bold text-primary-blue mb-4 sm:mb-6">
@@ -144,7 +161,7 @@ export default function StudentDashboard() {
               </div>
 
               <div className="space-y-3">
-                {upcomingLessons.map((lesson) => (
+                {displayLessons.map((lesson: any) => (
                   <div key={lesson.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-4 bg-primary-offwhite rounded-lg">
                     <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-blue rounded-lg flex items-center justify-center flex-shrink-0">

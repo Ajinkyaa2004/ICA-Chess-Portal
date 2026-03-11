@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -25,7 +25,7 @@ const batches = [
 ];
 
 // Mock students - Created AFTER payment
-const initialStudents = [
+const _initialStudents = [
   {
     id: 1,
     name: 'Arjun Patel',
@@ -124,7 +124,8 @@ const initialStudents = [
 ];
 
 export default function AdminStudentsPage() {
-  const [students, setStudents] = useState(initialStudents);
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -138,86 +139,120 @@ export default function AdminStudentsPage() {
     parent: '',
     parentPhone: '',
     parentEmail: '',
-    coachId: 1,
-    batchId: 1,
+    coachId: '',
+    batchId: '',
     type: 'group' as 'group' | '1-1',
-    level: 'Beginner',
+    level: 'beginner',
   });
+
+  const normalizeStudent = (s: any) => ({
+    ...s,
+    id: s._id,
+    parent: s.parentName || '',
+    status: (s.status || 'ACTIVE').toLowerCase(),
+    subscriptionStatus: (s.status || 'ACTIVE').toLowerCase(),
+    type: s.studentType || 'group',
+    joinedDate: s.joinDate ? s.joinDate.split('T')[0] : '',
+    rating: 800,
+    attendance: 95,
+  });
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({ limit: '100' });
+      if (searchQuery) params.set('search', searchQuery);
+      if (filterStatus !== 'all') params.set('status', filterStatus.toUpperCase());
+      const res = await fetch(`/api/students?${params}`);
+      if (res.ok) {
+        const json = await res.json();
+        setStudents((json.data || json.students || []).map(normalizeStudent));
+      }
+    } catch (err) {
+      console.error('Failed to fetch students:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchStudents(); }, []);
 
   const filteredStudents = students.filter(student => {
     const matchesStatus = filterStatus === 'all' || student.status === filterStatus;
     const matchesType = filterType === 'all' || student.type === filterType;
-    const matchesSearch = 
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.parent.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      (student.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (student.parent || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesType && matchesSearch;
   });
 
-  const handleCreateStudent = () => {
-    const newStudent = {
-      id: students.length + 1,
-      name: studentForm.name,
-      age: Number(studentForm.age),
-      parent: studentForm.parent,
-      parentPhone: studentForm.parentPhone,
-      parentEmail: studentForm.parentEmail,
-      coach: coaches.find(c => c.id === studentForm.coachId)?.name || '',
-      coachId: studentForm.coachId,
-      batch: batches.find(b => b.id === studentForm.batchId)?.name || '',
-      batchId: studentForm.batchId,
-      type: studentForm.type,
-      level: studentForm.level,
-      status: 'active',
-      subscriptionStatus: 'active',
-      joinedDate: new Date().toISOString().split('T')[0],
-      rating: 800,
-      attendance: 100,
-    };
-
-    setStudents([newStudent, ...students]);
-    setModalOpen(false);
-    setStudentForm({ name: '', age: '', parent: '', parentPhone: '', parentEmail: '', coachId: 1, batchId: 1, type: 'group', level: 'Beginner' });
+  const handleCreateStudent = async () => {
+    try {
+      const res = await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: studentForm.name,
+          age: Number(studentForm.age),
+          parentName: studentForm.parent,
+          parentPhone: studentForm.parentPhone,
+          parentEmail: studentForm.parentEmail,
+          level: studentForm.level,
+          studentType: studentForm.type,
+        }),
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setStudentForm({ name: '', age: '', parent: '', parentPhone: '', parentEmail: '', coachId: '', batchId: '', type: 'group', level: 'beginner' });
+        fetchStudents();
+      }
+    } catch (err) {
+      console.error('Failed to create student:', err);
+    }
   };
 
-  const handleEditStudent = () => {
+  const handleEditStudent = async () => {
     if (!selectedStudent) return;
-
-    const updated = students.map(s => 
-      s.id === selectedStudent.id 
-        ? {
-            ...s,
-            name: studentForm.name,
-            age: Number(studentForm.age),
-            parent: studentForm.parent,
-            parentPhone: studentForm.parentPhone,
-            parentEmail: studentForm.parentEmail,
-            coach: coaches.find(c => c.id === studentForm.coachId)?.name || '',
-            coachId: studentForm.coachId,
-            batch: batches.find(b => b.id === studentForm.batchId)?.name || '',
-            batchId: studentForm.batchId,
-            type: studentForm.type,
-            level: studentForm.level,
-          }
-        : s
-    );
-
-    setStudents(updated);
-    setModalOpen(false);
-    setSelectedStudent(null);
+    try {
+      const res = await fetch(`/api/students/${selectedStudent.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: studentForm.name,
+          age: Number(studentForm.age),
+          parentName: studentForm.parent,
+          parentPhone: studentForm.parentPhone,
+          parentEmail: studentForm.parentEmail,
+          level: studentForm.level,
+          studentType: studentForm.type,
+        }),
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setSelectedStudent(null);
+        fetchStudents();
+      }
+    } catch (err) {
+      console.error('Failed to update student:', err);
+    }
   };
 
-  const handleStatusChange = (studentId: number, newStatus: 'active' | 'paused' | 'cancelled') => {
-    const updated = students.map(s => 
-      s.id === studentId 
-        ? { ...s, status: newStatus, subscriptionStatus: newStatus }
-        : s
-    );
-    setStudents(updated);
+  const handleStatusChange = async (studentId: string, newStatus: 'active' | 'paused' | 'cancelled') => {
+    try {
+      await fetch(`/api/students/${studentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus.toUpperCase() }),
+      });
+      fetchStudents();
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
   };
 
   const openCreateModal = () => {
     setModalMode('create');
-    setStudentForm({ name: '', age: '', parent: '', parentPhone: '', parentEmail: '', coachId: 1, batchId: 1, type: 'group', level: 'Beginner' });
+    setStudentForm({ name: '', age: '', parent: '', parentPhone: '', parentEmail: '', coachId: '', batchId: '', type: 'group', level: 'beginner' });
     setModalOpen(true);
   };
 
@@ -239,11 +274,15 @@ export default function AdminStudentsPage() {
   };
 
   const exportStudents = () => {
-    const csv = filteredStudents.map(s => 
-      `${s.name},${s.age},${s.parent},${s.type},${s.level},${s.coach},${s.batch},${s.status}`
+    const csv = filteredStudents.map(s =>
+      `${s.name},${s.age},${s.parent},${s.type},${s.level},${s.status}`
     ).join('\n');
-    console.log('Exporting:', csv);
-    alert('Student data exported! (Mock functionality)');
+    const blob = new Blob([`Name,Age,Parent,Type,Level,Status\n${csv}`], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'students.csv';
+    a.click();
   };
 
   const activeCount = students.filter(s => s.status === 'active').length;
@@ -256,7 +295,7 @@ export default function AdminStudentsPage() {
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin" userRole="System Owner" />
+        <DashboardHeader userName="Admin" userRole="admin" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}
@@ -588,7 +627,7 @@ export default function AdminStudentsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assign Coach *</label>
                   <select
                     value={studentForm.coachId}
-                    onChange={(e) => setStudentForm({ ...studentForm, coachId: Number(e.target.value) })}
+                    onChange={(e) => setStudentForm({ ...studentForm, coachId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
                   >
                     {coaches.map(coach => (
@@ -600,7 +639,7 @@ export default function AdminStudentsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assign Batch *</label>
                   <select
                     value={studentForm.batchId}
-                    onChange={(e) => setStudentForm({ ...studentForm, batchId: Number(e.target.value) })}
+                    onChange={(e) => setStudentForm({ ...studentForm, batchId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
                   >
                     {batches.map(batch => (
@@ -630,9 +669,9 @@ export default function AdminStudentsPage() {
                     onChange={(e) => setStudentForm({ ...studentForm, level: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
                   >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
                   </select>
                 </div>
               </div>

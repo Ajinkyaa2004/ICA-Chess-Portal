@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -59,13 +59,25 @@ const payoutHistory = [
 export default function CoachEarningsPage() {
   const [selectedPayout, setSelectedPayout] = useState<typeof payoutHistory[0] | null>(null);
   const [showChart, setShowChart] = useState(false);
+  const [apiEarnings, setApiEarnings] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/coach/earnings').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.earnings) setApiEarnings(json.earnings);
+    }).catch(() => {});
+  }, []);
+
+  const displayPayouts = apiEarnings?.payouts?.length > 0 ? apiEarnings.payouts : payoutHistory;
+  const displayChartData = apiEarnings?.monthlyData?.length > 0 ? apiEarnings.monthlyData : earningsData;
+  const currentMonthEarnings = apiEarnings?.currentMonth ?? 747;
+  const _totalEarnings = apiEarnings?.total ?? 3193;
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
       <Sidebar role="coach" />
       
       <div className="flex-1">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="coach" />
+        <DashboardHeader userName="Coach" userRole="coach" />
         
         <main className="p-6">
           <h1 className="text-3xl font-heading font-bold text-primary-blue mb-6">
@@ -78,7 +90,7 @@ export default function CoachEarningsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-600 text-sm">This Month</p>
-                  <p className="text-3xl font-bold text-primary-blue">$747</p>
+                  <p className="text-3xl font-bold text-primary-blue">₹{currentMonthEarnings}</p>
                   <p className="text-green-600 text-sm flex items-center mt-1">
                     <TrendingUp className="w-4 h-4 mr-1" />
                     +12% from last month
@@ -120,7 +132,7 @@ export default function CoachEarningsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-600 text-sm">Next Payout</p>
-                  <p className="text-3xl font-bold text-primary-blue">$747</p>
+                  <p className="text-3xl font-bold text-primary-blue">₹{currentMonthEarnings}</p>
                   <p className="text-gray-500 text-sm mt-1">Feb 1, 2026</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
@@ -141,7 +153,7 @@ export default function CoachEarningsPage() {
                 </Button>
               </div>
               <div className="space-y-3">
-                {payoutHistory.map((payout) => (
+                {displayPayouts.map((payout: any) => (
                   <div key={payout.id} className="flex items-center justify-between p-4 bg-primary-offwhite rounded-lg hover:bg-gray-50 transition-all">
                     <div className="flex-1">
                       <p className="font-semibold text-base">{payout.month}</p>
@@ -187,7 +199,7 @@ export default function CoachEarningsPage() {
             
             {showChart && (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={earningsData}>
+                <BarChart data={displayChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />

@@ -114,7 +114,7 @@ export default function CoachMessagesPage() {
       <Sidebar role="coach" />
       
       <div className="flex-1 flex flex-col">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="Coach" />
+        <DashboardHeader userName="Coach" userRole="coach" />
         
         <main className="flex-1 flex flex-col p-3 sm:p-4 lg:p-6">
           {/* Header */}

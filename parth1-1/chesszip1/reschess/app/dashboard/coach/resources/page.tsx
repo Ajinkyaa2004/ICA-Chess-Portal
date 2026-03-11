@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -88,7 +88,8 @@ const initialResources = [
 
 export default function CoachResourcesPage() {
   const [resources, setResources] = useState(initialResources);
-  const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<string | number | null>(null);
+  const [apiBatches, setApiBatches] = useState<any[]>([]);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadForm, setUploadForm] = useState({
     batchId: 1,
@@ -98,6 +99,26 @@ export default function CoachResourcesPage() {
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch('/api/coach/batches').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.batches) setApiBatches(json.data || json.batches);
+    }).catch(() => {});
+    fetch('/api/study-materials').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.materials?.length > 0) {
+        setResources(json.materials.map((m: any) => ({
+          id: m._id, batchId: m.batchId?._id || m.batchId,
+          title: m.title, type: m.category || 'material',
+          fileType: m.fileUrl?.match(/\.(png|jpg|jpeg|gif)$/i) ? 'image' : m.fileUrl?.match(/\.(mp4|webm)$/i) ? 'video' : 'pdf',
+          fileName: m.title, fileSize: '', uploadedAt: m.createdAt || '', description: m.description || '',
+        })));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const displayBatches = apiBatches.length > 0
+    ? apiBatches.map((b: any) => ({ id: b._id, name: b.name, level: b.level || '' }))
+    : batches;
 
   const filteredResources = selectedBatch 
     ? resources.filter(r => r.batchId === selectedBatch)
@@ -151,7 +172,7 @@ export default function CoachResourcesPage() {
       <Sidebar role="coach" />
       
       <div className="flex-1">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="Coach" />
+        <DashboardHeader userName="Coach" userRole="coach" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}
@@ -185,7 +206,7 @@ export default function CoachResourcesPage() {
               >
                 All Batches ({resources.length})
               </Button>
-              {batches.map(batch => {
+              {displayBatches.map((batch: any) => {
                 const count = resources.filter(r => r.batchId === batch.id).length;
                 return (
                   <Button
@@ -257,7 +278,7 @@ export default function CoachResourcesPage() {
 
                       <div className="flex items-center text-xs text-gray-500 mb-2">
                         <Badge variant="default" className="text-xs mr-2">
-                          {batches.find(b => b.id === resource.batchId)?.name}
+                          {displayBatches.find((b: any) => b.id === resource.batchId)?.name}
                         </Badge>
                         <Calendar className="w-3 h-3 mr-1" />
                         {new Date(resource.uploadedAt).toLocaleDateString('en-IN', { 
@@ -327,7 +348,7 @@ export default function CoachResourcesPage() {
                   onChange={(e) => setUploadForm({ ...uploadForm, batchId: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
                 >
-                  {batches.map(batch => (
+                  {displayBatches.map((batch: any) => (
                     <option key={batch.id} value={batch.id}>{batch.name}</option>
                   ))}
                 </select>

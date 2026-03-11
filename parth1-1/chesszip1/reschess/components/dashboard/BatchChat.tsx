@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import { Send, Users, Paperclip } from 'lucide-react';
 
 interface BatchChatProps {
-  userRole: 'coach' | 'admin' | 'student' | 'parent';
+  userRole: 'coach' | 'admin' | 'customer' | 'parent';
   userName: string;
 }
 
@@ -149,10 +149,10 @@ const batchStudents = [
 
 export default function BatchChat({ userRole, userName }: BatchChatProps) {
   // Get student's assigned batch based on their name
-  const studentBatchId = userRole === 'student' ? studentBatchAssignment[userName] : null;
+  const studentBatchId = userRole === 'customer' ? studentBatchAssignment[userName] : null;
   
   // Students and parents only see their assigned batch, coaches/admins see all batches
-  const visibleBatches = (userRole === 'student' || userRole === 'parent') && studentBatchId 
+  const visibleBatches = (userRole === 'customer' || userRole === 'parent') && studentBatchId
     ? allBatches.filter(batch => batch.id === studentBatchId)
     : allBatches;
   
@@ -176,7 +176,7 @@ export default function BatchChat({ userRole, userName }: BatchChatProps) {
       <Card className="lg:col-span-1">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-heading font-semibold">
-            {(userRole === 'student' || userRole === 'parent') ? 'My Batch' : 'Batches'}
+            {(userRole === 'customer' || userRole === 'parent') ? 'My Batch' : 'Batches'}
           </h3>
           <Badge variant="info">{visibleBatches.length}</Badge>
         </div>

@@ -297,7 +297,7 @@ export default function ShowcasePage() {
             <div>
               <h3 className="text-lg font-semibold mb-3">Body Text (Figtree)</h3>
               <p className="text-base mb-2">
-                This is regular body text using the Figtree font family. It's designed for optimal readability.
+                This is regular body text using the Figtree font family. It&apos;s designed for optimal readability.
               </p>
               <p className="text-sm mb-2">
                 This is small text, perfect for captions and secondary information.

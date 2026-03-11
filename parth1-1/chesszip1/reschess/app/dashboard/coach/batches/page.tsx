@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { Users, Calendar, ChevronLeft, MessageSquare, BookOpen, AlertCircle, TrendingUp } from 'lucide-react';
+import { Users, ChevronLeft, MessageSquare, BookOpen, AlertCircle, TrendingUp } from 'lucide-react';
 
 // Mock data - Only ASSIGNED batches
 const assignedBatches = [
@@ -62,17 +62,38 @@ const assignedBatches = [
 ];
 
 export default function CoachBatchesPage() {
-  const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<string | number | null>(null);
+  const [apiBatches, setApiBatches] = useState<any[]>([]);
 
-  const batch = selectedBatch ? assignedBatches.find(b => b.id === selectedBatch) : null;
-  const totalStudents = assignedBatches.reduce((sum, b) => sum + b.studentCount, 0);
+  useEffect(() => {
+    fetch('/api/coach/batches').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.batches) setApiBatches(json.data || json.batches);
+    }).catch(() => {});
+  }, []);
+
+  const displayBatches = apiBatches.length > 0
+    ? apiBatches.map((b: any) => ({
+        id: b._id,
+        name: b.name,
+        level: b.level || '',
+        schedule: Array.isArray(b.schedule) ? b.schedule.map((s: any) => `${s.day} ${s.startTime}`).join(', ') : '',
+        studentCount: b.studentIds?.length || 0,
+        nextClass: b.nextClass || '',
+        students: (b.studentIds || []).map((s: any) => ({
+          id: s._id || s, name: s.name || 'Student', age: s.age || 0, rating: s.rating || 0, attendance: 0,
+        })),
+      }))
+    : assignedBatches;
+
+  const batch = selectedBatch ? displayBatches.find((b: any) => b.id === selectedBatch) : null;
+  const totalStudents = displayBatches.reduce((sum: number, b: any) => sum + (b.studentCount || 0), 0);
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
       <Sidebar role="coach" />
       
       <div className="flex-1">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="Coach" />
+        <DashboardHeader userName="Coach" userRole="coach" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}
@@ -105,7 +126,7 @@ export default function CoachBatchesPage() {
             <Card>
               <div className="text-center">
                 <p className="text-gray-600 text-xs sm:text-sm mb-1">My Batches</p>
-                <p className="text-3xl sm:text-4xl font-bold text-primary-blue">{assignedBatches.length}</p>
+                <p className="text-3xl sm:text-4xl font-bold text-primary-blue">{displayBatches.length}</p>
               </div>
             </Card>
             <Card>
@@ -118,7 +139,7 @@ export default function CoachBatchesPage() {
               <div className="text-center">
                 <p className="text-gray-600 text-xs sm:text-sm mb-1">Next Class</p>
                 <p className="text-lg sm:text-xl font-bold text-orange-600">
-                  {new Date(Math.min(...assignedBatches.map(b => new Date(b.nextClass).getTime()))).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                  {displayBatches.length > 0 && displayBatches[0].nextClass ? new Date(displayBatches[0].nextClass).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : 'TBD'}
                 </p>
               </div>
             </Card>
@@ -128,7 +149,7 @@ export default function CoachBatchesPage() {
           {!batch ? (
             /* Batches Overview */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {assignedBatches.map((b) => (
+              {displayBatches.map((b: any) => (
                 <Card key={b.id} className="hover:shadow-lg transition-shadow">
                   {/* Header */}
                   <div className="mb-4">
@@ -210,7 +231,7 @@ export default function CoachBatchesPage() {
 
               {/* Student List */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {batch.students.map((student) => (
+                {batch.students.map((student: any) => (
                   <Card key={student.id} className="hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-3">
                       <div className="min-w-0 flex-1">

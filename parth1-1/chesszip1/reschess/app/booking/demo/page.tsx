@@ -225,6 +225,13 @@ export default function DemoBookingPage() {
       setToast({ message: 'Please select at least one preferred time slot', type: 'error' });
       return;
     }
+
+    // Validate age
+    const parsedAge = parseInt(formData.studentAge);
+    if (!formData.studentAge || isNaN(parsedAge) || parsedAge < 3 || parsedAge > 100) {
+      setToast({ message: 'Please go back and enter a valid student age (3–100)', type: 'error' });
+      return;
+    }
     
     // Validate password if password method selected
     if (formData.authMethod === 'password') {
@@ -240,19 +247,42 @@ export default function DemoBookingPage() {
     
     setIsLoading(true);
 
-    // Simulate API call - creates Account with role=CUSTOMER
-    setTimeout(() => {
-      setIsLoading(false);
-      setToast({ 
-        message: formData.authMethod === 'magic-link' 
-          ? 'Account created! Check your email for login link' 
-          : 'Account created successfully!', 
-        type: 'success' 
+    try {
+      const res = await fetch('/api/public/demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentName: formData.studentName,
+          parentName: formData.parentName,
+          parentEmail: formData.parentEmail,
+          parentPhone: `${selectedCountry.phoneCode}${formData.parentPhone}`,
+          age: parsedAge,
+          country: selectedCountry.name,
+          timezone: formData.timezone,
+          preferredDate: formData.preferredDate,
+          preferredTime: formData.preferredTimes[0],
+          authMethod: formData.authMethod,
+          password: formData.authMethod === 'password' ? formData.password : undefined,
+        }),
       });
-      setTimeout(() => {
-        router.push('/booking/demo/success');
-      }, 1500);
-    }, 1500);
+      const data = await res.json();
+      if (!res.ok) {
+        setToast({ message: data.error || 'Booking failed. Please try again.', type: 'error' });
+        setIsLoading(false);
+        return;
+      }
+      setToast({
+        message: formData.authMethod === 'magic-link'
+          ? 'Demo booked! Check your email for the login link.'
+          : 'Demo booked successfully!',
+        type: 'success'
+      });
+      setTimeout(() => router.push('/booking/demo/success'), 1500);
+    } catch {
+      setToast({ message: 'Something went wrong. Please try again.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -528,7 +558,7 @@ export default function DemoBookingPage() {
                     <div>
                       <h3 className="font-semibold text-blue-900 mb-2">Automatic Coach Assignment</h3>
                       <p className="text-sm text-blue-800">
-                        Our admin team will assign the best available coach based on your student's age, 
+                        Our admin team will assign the best available coach based on your student&apos;s age, 
                         preferred time slots, and learning goals. This ensures the perfect match for your demo session.
                       </p>
                     </div>
@@ -591,7 +621,7 @@ export default function DemoBookingPage() {
                   <ul className="text-sm text-gray-700 space-y-1">
                     <li className="flex items-start">
                       <span className="text-primary-orange font-bold mr-2">1.</span>
-                      You'll receive a confirmation email with your demo details
+                      You&apos;ll receive a confirmation email with your demo details
                     </li>
                     <li className="flex items-start">
                       <span className="text-primary-orange font-bold mr-2">2.</span>
@@ -737,6 +767,18 @@ export default function DemoBookingPage() {
                 <Button
                   type="button"
                   onClick={() => {
+                    // Validate step 1 (student info) before proceeding
+                    if (step === 1) {
+                      if (!formData.studentName.trim() || !formData.parentName.trim() || !formData.parentEmail.trim() || !formData.parentPhone.trim()) {
+                        setToast({ message: 'Please fill in all required fields', type: 'error' });
+                        return;
+                      }
+                      const age = parseInt(formData.studentAge);
+                      if (!formData.studentAge || isNaN(age) || age < 3 || age > 100) {
+                        setToast({ message: 'Please enter a valid student age (3–100)', type: 'error' });
+                        return;
+                      }
+                    }
                     // Validate step 2 (scheduling) before proceeding
                     if (step === 2 && formData.preferredTimes.length === 0) {
                       setToast({ message: 'Please select at least one preferred time slot', type: 'error' });

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -52,12 +53,34 @@ const pastLessons = [
 ];
 
 export default function StudentLessonsPage() {
+  const [apiLessons, setApiLessons] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/customer/lessons').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.lessons) setApiLessons(json.data || json.lessons);
+    }).catch(() => {});
+  }, []);
+
+  const today = new Date();
+  const displayUpcoming = apiLessons.length > 0
+    ? apiLessons.filter((l: any) => new Date(l.date) >= today).map((l: any) => ({
+        id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
+        coach: l.coachId?.name || '', status: 'confirmed', hasZoomLink: !!l.meetingLink,
+      }))
+    : upcomingLessons;
+  const displayPast = apiLessons.length > 0
+    ? apiLessons.filter((l: any) => new Date(l.date) < today).map((l: any) => ({
+        id: l._id, date: l.date?.split('T')[0] || '', time: l.startTime || '',
+        coach: l.coachId?.name || '', status: l.status === 'COMPLETED' ? 'completed' : 'missed',
+      }))
+    : pastLessons;
+
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
-      <Sidebar role="student" />
+      <Sidebar role="customer" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Arjun Patel" userRole="student" />
+        <DashboardHeader userName="Student" userRole="customer" />
         
         <main className="p-6">
           <h1 className="text-3xl font-heading font-bold text-primary-blue mb-6">
@@ -68,7 +91,7 @@ export default function StudentLessonsPage() {
           <Card className="mb-6">
             <h3 className="text-xl font-heading font-semibold mb-4">Upcoming Lessons</h3>
             <div className="space-y-3">
-              {upcomingLessons.map((lesson) => (
+              {displayUpcoming.map((lesson: any) => (
                 <div key={lesson.id} className="flex items-center justify-between p-4 bg-primary-offwhite rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-primary-blue rounded-lg flex items-center justify-center">
@@ -108,7 +131,7 @@ export default function StudentLessonsPage() {
           <Card>
             <h3 className="text-xl font-heading font-semibold mb-4">Past Lessons</h3>
             <div className="space-y-3">
-              {pastLessons.map((lesson) => (
+              {displayPast.map((lesson: any) => (
                 <div key={lesson.id} className="flex items-center justify-between p-4 bg-primary-offwhite rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-gray-300 rounded-lg flex items-center justify-center">

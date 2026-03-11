@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Button from '@/components/ui/Button';
 
 export default function RegisterPage() {
@@ -20,11 +21,11 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-blue to-primary-olive py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center">
-          <img 
+          <Image 
             src="/imgs.png" 
             alt="Indian Chess Academy" 
             className="mx-auto w-20 h-20 mb-4 object-contain"
-          />
+          width={80} height={80} />
           <h1 className="text-3xl font-heading font-bold text-primary-blue mb-4">
             Welcome to ICA! 👋
           </h1>

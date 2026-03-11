@@ -7,6 +7,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import { use } from 'react';
 import { ChevronLeft, Send, Paperclip, Image as ImageIcon, FileText, Download, AlertCircle } from 'lucide-react';
 
 // Mock batch data
@@ -80,8 +81,8 @@ const initialMessages = [
   },
 ];
 
-export default function BatchChatPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function BatchChatPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: _id } = use(params);
   const [messages, setMessages] = useState(initialMessages);
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -128,7 +129,7 @@ export default function BatchChatPage({ params }: { params: { id: string } }) {
       <Sidebar role="coach" />
       
       <div className="flex-1 flex flex-col">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="Coach" />
+        <DashboardHeader userName="IM Ramesh Kumar" userRole="coach" />
         
         <main className="flex-1 flex flex-col p-3 sm:p-4 lg:p-6">
           {/* Header */}

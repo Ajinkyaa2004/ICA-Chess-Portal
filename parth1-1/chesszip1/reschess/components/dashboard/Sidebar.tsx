@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
@@ -28,7 +29,7 @@ const menuItems: Record<UserRole, Array<{
   label: string;
   href: string;
 }>> = {
-  student: [
+  customer: [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard/student' },
     { icon: Calendar, label: 'My Lessons', href: '/dashboard/student/lessons' },
     { icon: TrendingUp, label: 'My Progress', href: '/dashboard/student/progress' },
@@ -124,16 +125,16 @@ export default function Sidebar({ role }: SidebarProps) {
       >
         <div className="p-4 sm:p-6 border-b border-gray-200 mt-14 sm:mt-16">
           <div className="flex items-center space-x-2 sm:space-x-3">
-            <img 
+            <Image 
               src="/imgs.png" 
               alt="Indian Chess Academy" 
               className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0 object-contain"
-            />
+            width={80} height={80} />
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-heading font-bold text-primary-blue truncate">ICA</h1>
               <p className="text-xs text-gray-600 capitalize truncate">
-                {role === 'student' ? 'Student Portal' : 
-                 role === 'coach' ? 'Coach Portal' : 
+                {role === 'customer' ? 'Student Portal' :
+                 role === 'coach' ? 'Coach Portal' :
                  'Admin Portal'}
               </p>
             </div>

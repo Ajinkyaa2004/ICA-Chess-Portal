@@ -1,63 +1,77 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { ChevronLeft, TrendingUp, Users, DollarSign, Target, Download, Calendar, BarChart3, PieChart } from 'lucide-react';
+import { ChevronLeft, Users, DollarSign, Target, Download, BarChart3, PieChart } from 'lucide-react';
 
 export default function AdminAnalyticsPage() {
   const [timeRange, setTimeRange] = useState('month');
   const [metricView, setMetricView] = useState('overview');
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock analytics data
-  const coachMetrics = [
-    { id: 1, name: 'IM Ramesh Kumar', demos: 12, conversions: 8, conversionRate: 67, totalStudents: 24, oneOnOne: 8, group: 16, avgRating: 4.8, revenue: 2313 },
-    { id: 2, name: 'FM Priya Sharma', demos: 10, conversions: 6, conversionRate: 60, totalStudents: 18, oneOnOne: 6, group: 12, avgRating: 4.6, revenue: 1735 },
-    { id: 3, name: 'CM Aditya Verma', demos: 8, conversions: 5, conversionRate: 63, totalStudents: 15, oneOnOne: 5, group: 10, avgRating: 4.7, revenue: 1446 },
-  ];
+  useEffect(() => {
+    fetch('/api/analytics').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data) setAnalyticsData(json.data);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const coachMetrics: any[] = [];
 
   const funnelMetrics = {
-    totalDemos: 45,
-    attended: 38,
-    converted: 26,
-    oneOnOneConverted: 12,
-    groupConverted: 14,
-    notInterested: 8,
-    interested: 4,
-    avgDemoToPayment: 3.2,
+    totalDemos: analyticsData?.conversionFunnel?.totalDemos ?? 0,
+    attended: analyticsData?.conversionFunnel?.attended ?? 0,
+    converted: analyticsData?.conversionFunnel?.paid ?? 0,
+    oneOnOneConverted: 0,
+    groupConverted: 0,
+    notInterested: analyticsData?.demoPipeline?.notInterested ?? 0,
+    interested: analyticsData?.demoPipeline?.interested ?? 0,
+    avgDemoToPayment: 0,
   };
 
   const revenueMetrics = {
-    totalRevenue: 5494,
-    oneOnOneRevenue: 2313,
-    groupRevenue: 3181,
-    avgOneOnOneValue: 96,
-    avgGroupValue: 60,
-    monthlyRecurring: 2819,
+    totalRevenue: analyticsData?.totalRevenue ?? 0,
+    oneOnOneRevenue: 0,
+    groupRevenue: 0,
+    avgOneOnOneValue: 0,
+    avgGroupValue: 0,
+    monthlyRecurring: 0,
   };
 
   const adminMetrics = {
-    totalStudents: 57,
-    activeSubscriptions: 52,
-    pausedSubscriptions: 3,
-    totalCoaches: 12,
-    activeCoaches: 10,
-    totalBatches: 8,
-    avgStudentsPerBatch: 7,
-    totalDemosThisMonth: 18,
-    pendingOutcomes: 3,
+    totalStudents: analyticsData?.totalStudents ?? 0,
+    activeSubscriptions: analyticsData?.totalStudents ?? 0,
+    pausedSubscriptions: 0,
+    totalCoaches: analyticsData?.totalCoaches ?? 0,
+    activeCoaches: analyticsData?.totalCoaches ?? 0,
+    totalBatches: analyticsData?.totalBatches ?? 0,
+    avgStudentsPerBatch: analyticsData?.totalBatches ? Math.round((analyticsData?.totalStudents || 0) / analyticsData.totalBatches) : 0,
+    totalDemosThisMonth: analyticsData?.conversionFunnel?.totalDemos ?? 0,
+    pendingOutcomes: analyticsData?.pendingOutcomes?.length ?? 0,
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-primary-offwhite">
+        <Sidebar role="admin" />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-500">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin" userRole="System Owner" />
+        <DashboardHeader userName="Admin" userRole="admin" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}
@@ -169,7 +183,7 @@ export default function AdminAnalyticsPage() {
                 <Card className="bg-orange-50 border-orange-200">
                   <div className="text-center">
                     <p className="text-gray-600 text-xs sm:text-sm mb-1">Conv. Rate</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-orange-600">{Math.round((funnelMetrics.converted / funnelMetrics.totalDemos) * 100)}%</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-orange-600">{funnelMetrics.totalDemos ? Math.round((funnelMetrics.converted / funnelMetrics.totalDemos) * 100) : 0}%</p>
                     <p className="text-xs text-gray-600 mt-1">{funnelMetrics.converted}/{funnelMetrics.totalDemos} demos</p>
                   </div>
                 </Card>
@@ -219,20 +233,20 @@ export default function AdminAnalyticsPage() {
                   </div>
 
                   <div className="relative ml-4 sm:ml-8">
-                    <div className="h-14 bg-blue-200 rounded-lg flex items-center px-4" style={{ width: `${(funnelMetrics.attended / funnelMetrics.totalDemos) * 100}%` }}>
+                    <div className="h-14 bg-blue-200 rounded-lg flex items-center px-4" style={{ width: `${funnelMetrics.totalDemos ? (funnelMetrics.attended / funnelMetrics.totalDemos) * 100 : 0}%` }}>
                       <div className="flex-1">
                         <p className="font-semibold text-gray-900">Attended Demos</p>
-                        <p className="text-sm text-gray-600">{Math.round((funnelMetrics.attended / funnelMetrics.totalDemos) * 100)}% attendance</p>
+                        <p className="text-sm text-gray-600">{funnelMetrics.totalDemos ? Math.round((funnelMetrics.attended / funnelMetrics.totalDemos) * 100) : 0}% attendance</p>
                       </div>
                       <p className="text-xl font-bold text-blue-700">{funnelMetrics.attended}</p>
                     </div>
                   </div>
 
                   <div className="relative ml-8 sm:ml-16">
-                    <div className="h-12 bg-green-200 rounded-lg flex items-center px-4" style={{ width: `${(funnelMetrics.converted / funnelMetrics.totalDemos) * 100}%` }}>
+                    <div className="h-12 bg-green-200 rounded-lg flex items-center px-4" style={{ width: `${funnelMetrics.totalDemos ? (funnelMetrics.converted / funnelMetrics.totalDemos) * 100 : 0}%` }}>
                       <div className="flex-1">
                         <p className="font-semibold text-gray-900">Converted to Payment</p>
-                        <p className="text-sm text-gray-600">{Math.round((funnelMetrics.converted / funnelMetrics.totalDemos) * 100)}% conversion</p>
+                        <p className="text-sm text-gray-600">{funnelMetrics.totalDemos ? Math.round((funnelMetrics.converted / funnelMetrics.totalDemos) * 100) : 0}% conversion</p>
                       </div>
                       <p className="text-xl font-bold text-green-700">{funnelMetrics.converted}</p>
                     </div>
@@ -346,12 +360,12 @@ export default function AdminAnalyticsPage() {
                 <Card className="bg-purple-50 border-purple-200">
                   <p className="text-sm text-gray-600 mb-1">1-1 Revenue</p>
                   <p className="text-2xl font-bold text-purple-600">${(revenueMetrics.oneOnOneRevenue / 1000).toFixed(1)}K</p>
-                  <p className="text-xs text-gray-600 mt-1">{Math.round((revenueMetrics.oneOnOneRevenue / revenueMetrics.totalRevenue) * 100)}% of total</p>
+                  <p className="text-xs text-gray-600 mt-1">{revenueMetrics.totalRevenue ? Math.round((revenueMetrics.oneOnOneRevenue / revenueMetrics.totalRevenue) * 100) : 0}% of total</p>
                 </Card>
                 <Card className="bg-blue-50 border-blue-200">
                   <p className="text-sm text-gray-600 mb-1">Group Revenue</p>
                   <p className="text-2xl font-bold text-blue-600">${(revenueMetrics.groupRevenue / 1000).toFixed(1)}K</p>
-                  <p className="text-xs text-gray-600 mt-1">{Math.round((revenueMetrics.groupRevenue / revenueMetrics.totalRevenue) * 100)}% of total</p>
+                  <p className="text-xs text-gray-600 mt-1">{revenueMetrics.totalRevenue ? Math.round((revenueMetrics.groupRevenue / revenueMetrics.totalRevenue) * 100) : 0}% of total</p>
                 </Card>
               </div>
 
@@ -369,7 +383,7 @@ export default function AdminAnalyticsPage() {
                         <div className="h-3 bg-gray-200 rounded-full">
                           <div 
                             className="h-3 bg-purple-500 rounded-full"
-                            style={{ width: `${(revenueMetrics.oneOnOneRevenue / revenueMetrics.totalRevenue) * 100}%` }}
+                            style={{ width: `${revenueMetrics.totalRevenue ? (revenueMetrics.oneOnOneRevenue / revenueMetrics.totalRevenue) * 100 : 0}%` }}
                           ></div>
                         </div>
                       </div>
@@ -381,7 +395,7 @@ export default function AdminAnalyticsPage() {
                         <div className="h-3 bg-gray-200 rounded-full">
                           <div 
                             className="h-3 bg-blue-500 rounded-full"
-                            style={{ width: `${(revenueMetrics.groupRevenue / revenueMetrics.totalRevenue) * 100}%` }}
+                            style={{ width: `${revenueMetrics.totalRevenue ? (revenueMetrics.groupRevenue / revenueMetrics.totalRevenue) * 100 : 0}%` }}
                           ></div>
                         </div>
                       </div>

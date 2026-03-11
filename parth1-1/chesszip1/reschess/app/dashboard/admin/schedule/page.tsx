@@ -1,13 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { ChevronLeft, Search, Calendar, Clock, Users, Video, Eye, Edit, Plus, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Search, Users, Video, Eye, Edit, Plus, CheckCircle, AlertCircle, ChevronRight, X } from 'lucide-react';
+
+// Toast helper
+function showToast(msg: string, type: 'success' | 'error' = 'success') {
+  const el = document.createElement('div');
+  el.className = `fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg shadow-lg text-white text-sm ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
 
 // Mock coach data with availability and upcoming classes
 const coachesData = [
@@ -121,7 +130,64 @@ export default function AdminSchedulePage() {
   const [selectedCoach, setSelectedCoach] = useState<any>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'availability' | 'classes'>('overview');
-  const [currentDate, setCurrentDate] = useState(new Date('2026-01-21'));
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [apiCoaches, setApiCoaches] = useState<any[]>([]);
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [apiBatches, setApiBatches] = useState<any[]>([]);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newLesson, setNewLesson] = useState({
+    batchId: '',
+    coachId: '',
+    date: '',
+    startTime: '',
+    endTime: '',
+    topic: '',
+  });
+
+  const fetchLessons = () => {
+    fetch('/api/lessons?limit=100').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.lessons) setLessons(json.data || json.lessons);
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    fetch('/api/coaches?limit=50').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.coaches) setApiCoaches(json.data || json.coaches);
+    }).catch(() => {});
+    fetch('/api/batches?limit=100').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.batches) setApiBatches(json.data || json.batches);
+    }).catch(() => {});
+    fetchLessons();
+  }, []);
+
+  const handleCreateLesson = async () => {
+    if (!newLesson.batchId || !newLesson.coachId || !newLesson.date || !newLesson.startTime || !newLesson.endTime) {
+      showToast('Please fill all required fields', 'error');
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await fetch('/api/lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newLesson),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        showToast('Lesson scheduled successfully!');
+        setScheduleModalOpen(false);
+        setNewLesson({ batchId: '', coachId: '', date: '', startTime: '', endTime: '', topic: '' });
+        fetchLessons();
+      } else {
+        showToast(json.error || 'Failed to schedule lesson', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   // Navigation functions
   const handlePrevWeek = () => {
@@ -164,36 +230,74 @@ export default function AdminSchedulePage() {
   const weekDates = getWeekDates(currentDate);
   const currentDateStr = currentDate.toISOString().split('T')[0];
 
-  const filteredCoaches = coachesData.filter(coach =>
+  const normalizeCoach = (c: any) => ({
+    ...c,
+    id: c._id || c.id,
+    name: c.name || '',
+    email: c.email || '',
+    specialization: Array.isArray(c.specialization) ? c.specialization.join(', ') : (c.specialization || ''),
+    rating: c.rating || 0,
+    status: c.isActive === false ? 'inactive' : 'active',
+    availability: c.availability || {},
+    upcomingClasses: [],
+    totalHoursThisWeek: 0,
+  });
+
+  const displayCoaches = apiCoaches.length > 0
+    ? apiCoaches.map(normalizeCoach)
+    : coachesData;
+
+  const filteredCoaches = displayCoaches.filter(coach =>
     coach.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    coach.specialization.toLowerCase().includes(searchQuery.toLowerCase())
+    (typeof coach.specialization === 'string' && coach.specialization.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // Filter classes based on current date view
-  const allUpcomingClasses = coachesData.flatMap(coach =>
-    coach.upcomingClasses.map(cls => ({
-      ...cls,
-      coachName: coach.name,
-      coachId: coach.id
-    }))
-  ).filter(cls => {
-    // Filter classes for current week/month view
+  // Build classes from real lessons data; fall back to mock if no API data
+  const allUpcomingClasses = (lessons.length > 0
+    ? lessons.map((lesson: any) => ({
+        id: lesson._id,
+        date: lesson.date ? lesson.date.split('T')[0] : '',
+        time: lesson.startTime || '',
+        duration: lesson.startTime && lesson.endTime ? `${lesson.startTime}-${lesson.endTime}` : '',
+        student: lesson.batchId?.name || 'Batch',
+        type: lesson.batchId?.type === '1-1' ? 'Individual' : 'Group',
+        status: lesson.status === 'SCHEDULED' ? 'confirmed' : lesson.status?.toLowerCase() || 'confirmed',
+        coachName: lesson.coachId?.name || '',
+        coachId: lesson.coachId?._id || lesson.coachId,
+      }))
+    : coachesData.flatMap(coach =>
+        coach.upcomingClasses.map(cls => ({
+          ...cls,
+          coachName: coach.name,
+          coachId: coach.id,
+        }))
+      )
+  ).filter((cls: any) => {
     const classDate = new Date(cls.date);
     const startOfWeek = weekDates[0];
     const endOfWeek = weekDates[6];
     return classDate >= startOfWeek && classDate <= endOfWeek;
-  }).sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
+  }).sort((a: any, b: any) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
 
-  const totalActiveCoaches = coachesData.filter(c => c.status === 'active').length;
-  const totalClassesToday = allUpcomingClasses.filter(cls => cls.date === currentDateStr).length;
-  const totalHoursThisWeek = coachesData.reduce((sum, coach) => sum + coach.totalHoursThisWeek, 0);
+  const totalActiveCoaches = displayCoaches.filter(c => c.status === 'active').length;
+  const totalClassesToday = allUpcomingClasses.filter((cls: any) => cls.date === currentDateStr).length;
+  const totalHoursThisWeek = lessons.length > 0
+    ? Math.round(lessons.reduce((sum: number, l: any) => {
+        if (l.startTime && l.endTime) {
+          const [sh, sm] = l.startTime.split(':').map(Number);
+          const [eh, em] = l.endTime.split(':').map(Number);
+          return sum + (eh * 60 + em - (sh * 60 + sm)) / 60;
+        }
+        return sum;
+      }, 0) * 10) / 10
+    : coachesData.reduce((sum, coach) => sum + coach.totalHoursThisWeek, 0);
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin" userRole="System Owner" />
+        <DashboardHeader userName="Admin" userRole="admin" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}
@@ -209,7 +313,7 @@ export default function AdminSchedulePage() {
                 <h1 className="text-2xl sm:text-3xl font-heading font-bold text-primary-blue mb-1">Coach Schedule Management</h1>
                 <p className="text-gray-600 text-sm">Monitor coach availability and upcoming classes</p>
               </div>
-              <Button>
+              <Button onClick={() => setScheduleModalOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Schedule Class
               </Button>
@@ -240,7 +344,7 @@ export default function AdminSchedulePage() {
               <div className="text-center">
                 <p className="text-gray-600 text-xs sm:text-sm mb-1">Pending Demos</p>
                 <p className="text-xl sm:text-2xl font-bold text-orange-600">
-                  {allUpcomingClasses.filter(cls => cls.type === 'Demo' && cls.status === 'pending').length}
+                  {allUpcomingClasses.filter((cls: any) => cls.type === 'Demo' && cls.status === 'pending').length}
                 </p>
               </div>
             </Card>
@@ -367,7 +471,7 @@ export default function AdminSchedulePage() {
                         <div className="bg-gray-50 rounded-lg p-3">
                           <p className="text-xs text-gray-600 mb-1">Pending Demos</p>
                           <p className="text-lg font-semibold text-orange-600">
-                            {coach.upcomingClasses.filter(cls => cls.type === 'Demo' && cls.status === 'pending').length}
+                            {coach.upcomingClasses.filter((cls: any) => cls.type === 'Demo' && cls.status === 'pending').length}
                           </p>
                         </div>
                       </div>
@@ -375,7 +479,7 @@ export default function AdminSchedulePage() {
                       <div>
                         <h4 className="text-sm font-medium text-gray-700 mb-2">Next 3 Classes</h4>
                         <div className="space-y-2">
-                          {coach.upcomingClasses.slice(0, 3).map(cls => (
+                          {coach.upcomingClasses.slice(0, 3).map((cls: any) => (
                             <div key={cls.id} className="flex items-center justify-between bg-white border rounded-lg p-2">
                               <div className="flex items-center space-x-3">
                                 <div className="text-xs">
@@ -428,7 +532,7 @@ export default function AdminSchedulePage() {
                         {daysOfWeek.map(day => (
                           <td key={day} className="p-2 text-center">
                             <div className="space-y-1">
-                              {coach.availability[day as keyof typeof coach.availability].map((slot, index) => (
+                              {coach.availability[day as keyof typeof coach.availability].map((slot: any, index: number) => (
                                 <div
                                   key={index}
                                   className={`text-xs px-2 py-1 rounded ${
@@ -506,11 +610,24 @@ export default function AdminSchedulePage() {
                         </td>
                         <td className="p-3">
                           <div className="flex gap-1">
-                            <Button size="sm" variant="outline" className="text-xs px-2 py-1">
+                            <Button size="sm" variant="outline" className="text-xs px-2 py-1" onClick={() => {
+                              const coach = displayCoaches.find((c: any) => String(c.id) === String(cls.coachId));
+                              if (coach) { setSelectedCoach(coach); setDetailsModalOpen(true); }
+                            }}>
                               <Eye className="w-3 h-3 mr-1" />
                               View
                             </Button>
-                            <Button size="sm" variant="outline" className="text-xs px-2 py-1">
+                            <Button size="sm" variant="outline" className="text-xs px-2 py-1" onClick={() => {
+                              setNewLesson({
+                                batchId: '',
+                                coachId: String(cls.coachId || ''),
+                                date: cls.date || '',
+                                startTime: cls.time || '',
+                                endTime: '',
+                                topic: '',
+                              });
+                              setScheduleModalOpen(true);
+                            }}>
                               <Edit className="w-3 h-3 mr-1" />
                               Edit
                             </Button>
@@ -605,9 +722,113 @@ export default function AdminSchedulePage() {
               >
                 Close
               </Button>
-              <Button className="flex-1">
+              <Button className="flex-1" onClick={() => { setDetailsModalOpen(false); setScheduleModalOpen(true); }}>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Schedule
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Schedule Class Modal */}
+      {scheduleModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-heading font-bold text-primary-blue">Schedule New Class</h3>
+              <button onClick={() => setScheduleModalOpen(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Batch */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Batch *</label>
+                <select
+                  value={newLesson.batchId}
+                  onChange={(e) => setNewLesson({ ...newLesson, batchId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue text-sm"
+                >
+                  <option value="">Select batch...</option>
+                  {apiBatches.map((b: any) => (
+                    <option key={b._id || b.id} value={b._id || b.id}>
+                      {b.name} ({b.type || 'group'} - {b.level || 'all levels'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Coach */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Coach *</label>
+                <select
+                  value={newLesson.coachId}
+                  onChange={(e) => setNewLesson({ ...newLesson, coachId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue text-sm"
+                >
+                  <option value="">Select coach...</option>
+                  {(apiCoaches.length > 0 ? apiCoaches : coachesData).map((c: any) => (
+                    <option key={c._id || c.id} value={c._id || c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Date *</label>
+                <input
+                  type="date"
+                  value={newLesson.date}
+                  onChange={(e) => setNewLesson({ ...newLesson, date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue text-sm"
+                />
+              </div>
+
+              {/* Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Start Time *</label>
+                  <input
+                    type="time"
+                    value={newLesson.startTime}
+                    onChange={(e) => setNewLesson({ ...newLesson, startTime: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">End Time *</label>
+                  <input
+                    type="time"
+                    value={newLesson.endTime}
+                    onChange={(e) => setNewLesson({ ...newLesson, endTime: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Topic */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Topic (optional)</label>
+                <input
+                  type="text"
+                  value={newLesson.topic}
+                  onChange={(e) => setNewLesson({ ...newLesson, topic: e.target.value })}
+                  placeholder="e.g., Opening strategies, Endgame tactics..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <Button variant="outline" className="flex-1" onClick={() => setScheduleModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={handleCreateLesson} disabled={creating}>
+                {creating ? 'Scheduling...' : 'Schedule Class'}
               </Button>
             </div>
           </Card>

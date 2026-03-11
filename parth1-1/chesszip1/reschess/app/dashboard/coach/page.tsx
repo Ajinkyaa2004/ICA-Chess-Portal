@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -64,19 +64,51 @@ const todaysClasses = [
   { time: '04:00 PM', type: 'Group', student: 'Beginners Batch A', hasLink: false, link: '' },
 ];
 
-const upcomingDemos = assignedDemos.filter(demo => demo.status === 'scheduled').length;
-const totalBatches = assignedBatches.length;
+const _upcomingDemos = assignedDemos.filter(demo => demo.status === 'scheduled').length;
+const _totalBatches = assignedBatches.length;
 const todaysClassCount = todaysClasses.length;
 const pendingReviewRequests = reviewRequests.filter(req => req.status === 'pending').length;
 
 export default function CoachDashboard() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [scheduleForm, setScheduleForm] = useState({
-    date: '',
-    time: '',
-    meetingLink: ''
-  });
+  const [scheduleForm, setScheduleForm] = useState({ date: '', time: '', meetingLink: '' });
+  const [apiDemos, setApiDemos] = useState<any[]>([]);
+  const [apiBatches, setApiBatches] = useState<any[]>([]);
+  const [apiLessons, setApiLessons] = useState<any[]>([]);
+  const [coachName, setCoachName] = useState('Coach');
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.user?.name) setCoachName(json.user.name);
+    }).catch(() => {});
+    fetch('/api/coach/batches').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.batches) setApiBatches(json.data || json.batches);
+    }).catch(() => {});
+    fetch('/api/coach/schedule').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.lessons) setApiLessons(json.data || json.lessons);
+    }).catch(() => {});
+    fetch('/api/demos?limit=20').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.demos) setApiDemos((json.data || json.demos).filter((d: any) => ['BOOKED', 'RESCHEDULED'].includes(d.status)));
+    }).catch(() => {});
+  }, []);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const displayDemos = apiDemos.length > 0 ? apiDemos : assignedDemos;
+  const displayBatches = apiBatches.length > 0 ? apiBatches.map((b: any) => ({
+    id: b._id, name: b.name, studentCount: b.studentIds?.length || 0, level: b.level || '', nextClass: ''
+  })) : assignedBatches;
+  const displayLessons = apiLessons.length > 0
+    ? apiLessons.filter((l: any) => l.date && l.date.split('T')[0] === todayStr).map((l: any) => ({
+        time: l.startTime || '', type: l.batchId?.type === '1-1' ? '1-1' : 'Group',
+        student: l.batchId?.name || 'Batch', hasLink: false, link: '',
+      }))
+    : todaysClasses;
+
+  const upcomingDemos = displayDemos.filter((d: any) => d.status === 'scheduled' || d.status === 'BOOKED').length;
+  const totalBatches = displayBatches.length;
+  const todaysClassCount = displayLessons.length;
+  const pendingReviewRequests = reviewRequests.filter(req => req.status === 'pending').length;
 
   const handleScheduleReview = () => {
     // Mock API call - in real app, this would send to backend
@@ -96,7 +128,7 @@ export default function CoachDashboard() {
       <Sidebar role="coach" />
       
       <div className="flex-1">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="Coach" />
+        <DashboardHeader userName={coachName} userRole="coach" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Review Session Requests Alert */}
@@ -259,9 +291,9 @@ export default function CoachDashboard() {
                 </Link>
               </div>
 
-              {assignedDemos.length > 0 ? (
+              {displayDemos.length > 0 ? (
                 <div className="space-y-3">
-                  {assignedDemos.slice(0, 3).map((demo) => (
+                  {displayDemos.slice(0, 3).map((demo: any) => (
                     <div key={demo.id} className="p-3 bg-primary-offwhite rounded-lg">
                       <div className="flex items-start justify-between mb-2">
                         <div className="min-w-0 flex-1">
@@ -308,9 +340,9 @@ export default function CoachDashboard() {
               </Link>
             </div>
 
-            {todaysClasses.length > 0 ? (
+            {displayLessons.length > 0 ? (
               <div className="space-y-3">
-                {todaysClasses.map((lesson, idx) => (
+                {displayLessons.map((lesson: any, idx: number) => (
                   <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-4 bg-primary-offwhite rounded-lg">
                     <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 min-w-0 flex-1 w-full">
                       <div className="text-center flex-shrink-0">
@@ -369,7 +401,7 @@ export default function CoachDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {assignedBatches.map((batch) => (
+              {displayBatches.map((batch: any) => (
                 <div key={batch.id} className="p-4 bg-primary-offwhite rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
                   <div className="flex items-start justify-between mb-3">
                     <div className="min-w-0 flex-1">

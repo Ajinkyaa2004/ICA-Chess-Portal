@@ -31,7 +31,7 @@ export default function DemoSuccessPage() {
               <div className="text-left">
                 <h3 className="font-semibold text-green-900 mb-2">Your Account is Ready</h3>
                 <p className="text-sm text-green-700">
-                  We've created your account with <strong>CUSTOMER</strong> role. 
+                  We&apos;ve created your account with <strong>CUSTOMER</strong> role. 
                   You can now log in to access your demo dashboard.
                 </p>
               </div>
@@ -59,7 +59,7 @@ export default function DemoSuccessPage() {
                 <Phone className="w-5 h-5 text-primary-orange mr-3 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-medium">Reminder</p>
-                  <p className="text-gray-600">You'll receive a demo link 15 minutes before the session</p>
+                  <p className="text-gray-600">You&apos;ll receive a demo link 15 minutes before the session</p>
                 </div>
               </div>
             </div>

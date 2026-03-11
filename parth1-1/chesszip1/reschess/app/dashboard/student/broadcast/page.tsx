@@ -4,7 +4,7 @@ import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import { Users, Mail, MessageSquare, Bell } from 'lucide-react';
+import { Mail, MessageSquare, Bell } from 'lucide-react';
 
 const broadcasts = [
   { id: 1, title: 'Tournament Registration Open', sender: 'Admin', date: 'Jan 14, 2026', time: '10:00 AM', type: 'Email', message: 'Dear students, registration for the upcoming Inter-Academy Chess Tournament is now open. Please register by January 20th to secure your spot. This is a great opportunity to test your skills against players from other academies!' },
@@ -17,10 +17,10 @@ const broadcasts = [
 export default function StudentBroadcastPage() {
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
-      <Sidebar role="student" />
+      <Sidebar role="customer" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Arjun Patel" userRole="student" />
+        <DashboardHeader userName="Student" userRole="customer" />
         
         <main className="p-6">
           <div className="mb-6">

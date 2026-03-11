@@ -185,7 +185,7 @@ export default function PricingPage() {
               Not sure which plan is right for you?
             </h3>
             <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-              Book a free demo lesson and we'll help you choose the perfect plan
+              Book a free demo lesson and we&apos;ll help you choose the perfect plan
             </p>
             <Link href="/booking/demo">
               <Button size="lg">Book Free Demo</Button>

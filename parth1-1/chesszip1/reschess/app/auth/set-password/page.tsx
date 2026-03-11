@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import Toast, { ToastType } from '@/components/ui/Toast';
@@ -23,17 +24,13 @@ function SetPasswordContent() {
   const email = searchParams.get('email');
 
   useEffect(() => {
-    // Validate token on mount
-    if (!token || !email) {
+    if (!token) {
       setTokenValid(false);
       return;
     }
-
-    // Simulate token validation
-    setTimeout(() => {
-      setTokenValid(true);
-    }, 500);
-  }, [token, email]);
+    // Token will be validated on submit
+    setTokenValid(true);
+  }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,14 +47,32 @@ function SetPasswordContent() {
 
     setIsLoading(true);
 
-    // Simulate API call to set password
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password: formData.password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setToast({ message: data.error || 'Failed to reset password', type: 'error' });
+        if (res.status === 400 && data.error?.includes('expired')) {
+          setTokenValid(false);
+        }
+        return;
+      }
+
       setToast({ message: 'Password set successfully! Redirecting to login...', type: 'success' });
       setTimeout(() => {
         router.push('/auth/login');
       }, 2000);
-    }, 1500);
+    } catch {
+      setToast({ message: 'Network error. Please try again.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getPasswordStrength = (password: string) => {
@@ -116,11 +131,11 @@ function SetPasswordContent() {
       
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
-          <img 
+          <Image 
             src="/imgs.png" 
             alt="Indian Chess Academy" 
             className="mx-auto w-20 h-20 mb-4 object-contain"
-          />
+          width={80} height={80} />
           <h1 className="text-3xl font-heading font-bold text-primary-blue mb-2">
             Set Your Password
           </h1>

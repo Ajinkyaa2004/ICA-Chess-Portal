@@ -5,7 +5,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { Search, Calendar, Clock, Video } from 'lucide-react';
+import { Search, Calendar, Clock } from 'lucide-react';
 
 const bookings = [
   { id: 1, student: 'Arjun Patel', coach: 'IM Ramesh Kumar', date: 'Jan 16, 2026', time: '10:00 AM', duration: '60 min', status: 'confirmed', type: 'Regular Lesson' },

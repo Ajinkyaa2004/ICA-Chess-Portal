@@ -1,15 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { ChevronLeft, Send, Users, Mail, MessageSquare, Bell, CheckCircle, Filter } from 'lucide-react';
+import { ChevronLeft, Send, Mail, MessageSquare, Bell, CheckCircle, Filter } from 'lucide-react';
 
-const previousBroadcasts = [
+// Toast helper
+function showToast(msg: string, type: 'success' | 'error' = 'success') {
+  const el = document.createElement('div');
+  el.className = `fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg shadow-lg text-white text-sm ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+const mockPreviousBroadcasts = [
   { id: 1, title: 'Tournament Registration Open', recipients: 'All Students', filters: 'Batch: All', date: '2026-01-14', time: '10:00 AM', status: 'sent', delivered: 45, type: 'Email & Push' },
   { id: 2, title: 'New Coach Introduction', recipients: 'Level: Intermediate', filters: 'Level: Intermediate', date: '2026-01-12', time: '3:00 PM', status: 'sent', delivered: 18, type: 'Push' },
   { id: 3, title: 'Holiday Schedule Update', recipients: 'Type: Group Classes', filters: 'Type: Group', date: '2026-01-10', time: '9:00 AM', status: 'sent', delivered: 32, type: 'Email' },
@@ -26,6 +35,18 @@ export default function AdminBroadcastPage() {
   const [filterTimezone, setFilterTimezone] = useState('all');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [apiBroadcasts, setApiBroadcasts] = useState<any[]>([]);
+
+  // Fetch previous broadcasts from API
+  useEffect(() => {
+    fetch('/api/broadcasts')
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json?.data) setApiBroadcasts(json.data);
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleMessageType = (type: string) => {
     if (messageType.includes(type)) {
@@ -35,14 +56,50 @@ export default function AdminBroadcastPage() {
     }
   };
 
-  const handleSend = () => {
+  // Map UI recipientType to API targetRoles
+  const getTargetRoles = (): string[] => {
+    switch (recipientType) {
+      case 'students': return ['CUSTOMER'];
+      case 'parents': return ['CUSTOMER'];
+      case 'coaches': return ['COACH'];
+      case 'all':
+      default: return ['ADMIN', 'COACH', 'CUSTOMER'];
+    }
+  };
+
+  const handleSend = async () => {
     if (!subject || !message || messageType.length === 0) {
-      alert('Please fill all required fields');
+      showToast('Please fill all required fields', 'error');
       return;
     }
-    alert('Broadcast sent successfully!');
-    setSubject('');
-    setMessage('');
+    setSending(true);
+    try {
+      const res = await fetch('/api/broadcasts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: subject,
+          content: message,
+          targetRoles: getTargetRoles(),
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        showToast('Broadcast sent successfully!');
+        setSubject('');
+        setMessage('');
+        // Refresh the broadcasts list
+        if (json.data) {
+          setApiBroadcasts(prev => [json.data, ...prev]);
+        }
+      } else {
+        showToast(json.error || 'Failed to send broadcast', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -50,7 +107,7 @@ export default function AdminBroadcastPage() {
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin" userRole="System Owner" />
+        <DashboardHeader userName="Admin" userRole="admin" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           <div className="mb-4 sm:mb-6">
@@ -242,9 +299,9 @@ export default function AdminBroadcastPage() {
 
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-                  <Button onClick={handleSend} className="flex-1 sm:flex-none">
+                  <Button onClick={handleSend} className="flex-1 sm:flex-none" disabled={sending}>
                     <Send className="w-4 h-4 mr-2" />
-                    Send Broadcast
+                    {sending ? 'Sending...' : 'Send Broadcast'}
                   </Button>
                   <Button variant="outline" className="flex-1 sm:flex-none">
                     Schedule
@@ -314,7 +371,18 @@ export default function AdminBroadcastPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {previousBroadcasts.map((broadcast) => (
+                  {(apiBroadcasts.length > 0
+                    ? apiBroadcasts.map((b: any) => ({
+                        id: b._id || b.id,
+                        title: b.title,
+                        filters: (b.targetRoles || []).join(', '),
+                        date: b.createdAt ? new Date(b.createdAt).toLocaleDateString() : '',
+                        time: b.createdAt ? new Date(b.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                        delivered: b.readBy?.length || 0,
+                        type: 'Push',
+                      }))
+                    : mockPreviousBroadcasts
+                  ).map((broadcast: any) => (
                     <tr key={broadcast.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-3">
                         <p className="font-semibold text-gray-900 text-sm">{broadcast.title}</p>

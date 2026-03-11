@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -10,7 +10,7 @@ import Button from '@/components/ui/Button';
 import { ChevronLeft, Search, DollarSign, Download, Pause, Play, XCircle, Eye, FileText } from 'lucide-react';
 
 // Mock subscriptions with control
-const initialSubscriptions = [
+const _initialSubscriptions = [
   { 
     id: 1, 
     student: 'Arjun Patel', 
@@ -99,7 +99,7 @@ const upcomingPayments = [
 ];
 
 // Mock coach payments data
-const initialCoachPayments = [
+const _initialCoachPayments = [
   { 
     id: 1, 
     coach: 'Rajesh Gupta', 
@@ -165,9 +165,9 @@ const initialCoachPayments = [
 
 
 export default function AdminPaymentsPage() {
-  const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
-  const [transactions] = useState(initialTransactions);
-  const [coachPayments, setCoachPayments] = useState(initialCoachPayments);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [coachPayments, setCoachPayments] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
@@ -180,44 +180,69 @@ export default function AdminPaymentsPage() {
   const [coachFilterStatus, setCoachFilterStatus] = useState<string>('all');
   const [coachSearchQuery, setCoachSearchQuery] = useState('');
 
+  const fetchData = async () => {
+    try {
+      const [subsRes, txRes] = await Promise.all([
+        fetch('/api/subscriptions?limit=100'),
+        fetch('/api/students?limit=1'), // Just to warm up connection
+      ]);
+      if (subsRes.ok) {
+        const json = await subsRes.json();
+        const subs = (json.subscriptions || []).map((s: any) => ({
+          ...s,
+          id: s._id,
+          student: s.studentId?.name || 'Unknown',
+          parent: s.studentId?.parentName || '',
+          status: (s.status || '').toLowerCase(),
+          nextBilling: s.endDate ? s.endDate.split('T')[0] : '',
+          startDate: s.startDate ? s.startDate.split('T')[0] : '',
+          sessionsUsed: 0,
+          sessionsTotal: 0,
+          paymentMethod: 'Razorpay',
+        }));
+        setSubscriptions(subs);
+      }
+    } catch (err) {
+      console.error('Failed to fetch payment data:', err);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
   const filteredSubscriptions = subscriptions.filter(sub => {
     const matchesStatus = filterStatus === 'all' || sub.status === filterStatus;
-    const matchesSearch = 
-      sub.student.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sub.parent.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      (sub.student || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (sub.parent || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
   const filteredCoachPayments = coachPayments.filter(coach => {
     const matchesStatus = coachFilterStatus === 'all' || coach.status === coachFilterStatus;
-    const matchesSearch = 
-      coach.coach.toLowerCase().includes(coachSearchQuery.toLowerCase()) ||
-      coach.email.toLowerCase().includes(coachSearchQuery.toLowerCase());
+    const matchesSearch =
+      (coach.coach || '').toLowerCase().includes(coachSearchQuery.toLowerCase()) ||
+      (coach.email || '').toLowerCase().includes(coachSearchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  const handlePauseSubscription = (id: number) => {
-    setSubscriptions(subscriptions.map(sub => 
-      sub.id === id ? { ...sub, status: 'paused', nextBilling: 'Paused' } : sub
-    ));
-  };
-
-  const handleResumeSubscription = (id: number) => {
-    const sub = subscriptions.find(s => s.id === id);
-    if (sub) {
-      const nextBilling = new Date();
-      nextBilling.setMonth(nextBilling.getMonth() + 1);
-      setSubscriptions(subscriptions.map(s => 
-        s.id === id ? { ...s, status: 'active', nextBilling: nextBilling.toISOString().split('T')[0] } : s
-      ));
+  const updateSubStatus = async (id: string, status: string) => {
+    try {
+      await fetch(`/api/subscriptions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: status.toUpperCase() }),
+      });
+      fetchData();
+    } catch (err) {
+      console.error('Failed to update subscription:', err);
     }
   };
 
-  const handleCancelSubscription = (id: number) => {
+  const handlePauseSubscription = (id: string) => updateSubStatus(id, 'paused');
+  const handleResumeSubscription = (id: string) => updateSubStatus(id, 'active');
+  const handleCancelSubscription = (id: string) => {
     if (confirm('Cancel this subscription? This cannot be undone.')) {
-      setSubscriptions(subscriptions.map(sub => 
-        sub.id === id ? { ...sub, status: 'cancelled', nextBilling: 'Cancelled' } : sub
-      ));
+      updateSubStatus(id, 'cancelled');
     }
   };
 
@@ -267,7 +292,7 @@ export default function AdminPaymentsPage() {
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin" userRole="System Owner" />
+        <DashboardHeader userName="Admin" userRole="admin" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}

@@ -59,7 +59,7 @@ export default function CoachBroadcastPage() {
       <Sidebar role="coach" />
       
       <div className="flex-1">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="coach" />
+        <DashboardHeader userName="Coach" userRole="coach" />
         
         <main className="p-6">
           <div className="mb-6">
@@ -155,7 +155,7 @@ export default function CoachBroadcastPage() {
               <div className="text-center py-12">
                 <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No broadcasts yet</h3>
-                <p className="text-gray-600">You'll see announcements from admin here</p>
+                <p className="text-gray-600">You&apos;ll see announcements from admin here</p>
               </div>
             )}
           </Card>

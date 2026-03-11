@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Calendar, Clock, Video, CreditCard, LogOut, User, Mail, Phone, Globe, Award } from 'lucide-react';
+import { Calendar, Clock, Video, CreditCard, LogOut, User, Mail, Globe } from 'lucide-react';
 
 export default function CustomerDashboard() {
   const router = useRouter();

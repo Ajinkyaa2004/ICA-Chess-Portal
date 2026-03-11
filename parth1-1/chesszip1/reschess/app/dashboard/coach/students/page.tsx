@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -61,12 +62,38 @@ const students = [
 ];
 
 export default function CoachStudentsPage() {
+  const [apiStudents, setApiStudents] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetch('/api/coach/students').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.students) setApiStudents(json.data || json.students);
+    }).catch(() => {});
+  }, []);
+
+  const displayStudents = apiStudents.length > 0
+    ? apiStudents.map((s: any) => ({
+        id: s._id,
+        name: s.name || '',
+        rating: s.rating || 0,
+        trend: 'stable',
+        change: 0,
+        lessonsCompleted: s.lessonsCompleted || 0,
+        attendance: s.attendance || 0,
+        lastLesson: s.lastLesson || '',
+      }))
+    : students;
+
+  const filtered = displayStudents.filter((s: any) =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
       <Sidebar role="coach" />
       
       <div className="flex-1">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="coach" />
+        <DashboardHeader userName="Coach" userRole="coach" />
         
         <main className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -79,6 +106,8 @@ export default function CoachStudentsPage() {
                 <input
                   type="text"
                   placeholder="Search students..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-orange focus:border-transparent"
                 />
               </div>
@@ -89,19 +118,27 @@ export default function CoachStudentsPage() {
           <div className="grid md:grid-cols-4 gap-6 mb-6">
             <Card>
               <p className="text-gray-600 text-sm">Total Students</p>
-              <p className="text-3xl font-bold text-primary-blue">24</p>
+              <p className="text-3xl font-bold text-primary-blue">{displayStudents.length || 24}</p>
             </Card>
             <Card>
               <p className="text-gray-600 text-sm">Avg Rating</p>
-              <p className="text-3xl font-bold text-primary-blue">1310</p>
+              <p className="text-3xl font-bold text-primary-blue">
+                {displayStudents.length > 0 && displayStudents[0].rating > 0
+                  ? Math.round(displayStudents.reduce((s: number, st: any) => s + (st.rating || 0), 0) / displayStudents.length)
+                  : 1310}
+              </p>
             </Card>
             <Card>
               <p className="text-gray-600 text-sm">Avg Attendance</p>
-              <p className="text-3xl font-bold text-primary-blue">89%</p>
+              <p className="text-3xl font-bold text-primary-blue">
+                {displayStudents.length > 0 && displayStudents[0].attendance > 0
+                  ? Math.round(displayStudents.reduce((s: number, st: any) => s + (st.attendance || 0), 0) / displayStudents.length) + '%'
+                  : '89%'}
+              </p>
             </Card>
             <Card>
               <p className="text-gray-600 text-sm">Active This Month</p>
-              <p className="text-3xl font-bold text-primary-blue">22</p>
+              <p className="text-3xl font-bold text-primary-blue">{displayStudents.length || 22}</p>
             </Card>
           </div>
 
@@ -109,7 +146,7 @@ export default function CoachStudentsPage() {
           <Card>
             <h3 className="text-xl font-heading font-semibold mb-4">Student Roster</h3>
             <div className="space-y-3">
-              {students.map((student) => (
+              {filtered.map((student: any) => (
                 <div key={student.id} className="p-4 bg-primary-offwhite rounded-lg hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">

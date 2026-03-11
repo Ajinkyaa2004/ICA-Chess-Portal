@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -71,22 +71,43 @@ const assignedDemos = [
 export default function CoachDemosPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'scheduled' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [apiDemos, setApiDemos] = useState<any[]>([]);
 
-  const filteredDemos = assignedDemos.filter(demo => {
+  useEffect(() => {
+    fetch('/api/demos?limit=50').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.demos) setApiDemos(json.data || json.demos);
+    }).catch(() => {});
+  }, []);
+
+  const displayDemos = apiDemos.length > 0
+    ? apiDemos.map((d: any) => ({
+        id: d._id,
+        studentName: d.studentName || '',
+        studentAge: d.age || 0,
+        date: d.preferredDate ? d.preferredDate.split('T')[0] : '',
+        time: d.preferredTime || '',
+        status: ['BOOKED', 'RESCHEDULED'].includes(d.status) ? 'scheduled' : 'completed',
+        meetingLink: d.meetingLink || null,
+        notes: d.notes || '',
+        outcome: d.status === 'CONVERTED' ? 'converted' : d.status === 'NOT_INTERESTED' ? 'not_interested' : null,
+      }))
+    : assignedDemos;
+
+  const filteredDemos = displayDemos.filter((demo: any) => {
     const matchesStatus = filterStatus === 'all' || demo.status === filterStatus;
     const matchesSearch = demo.studentName.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  const scheduledCount = assignedDemos.filter(d => d.status === 'scheduled').length;
-  const completedCount = assignedDemos.filter(d => d.status === 'completed').length;
+  const scheduledCount = displayDemos.filter((d: any) => d.status === 'scheduled').length;
+  const completedCount = displayDemos.filter((d: any) => d.status === 'completed').length;
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
       <Sidebar role="coach" />
       
       <div className="flex-1">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="Coach" />
+        <DashboardHeader userName="Coach" userRole="coach" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}
@@ -119,7 +140,7 @@ export default function CoachDemosPage() {
             <Card>
               <div className="text-center">
                 <p className="text-gray-600 text-xs sm:text-sm mb-1">Total Assigned</p>
-                <p className="text-3xl sm:text-4xl font-bold text-primary-blue">{assignedDemos.length}</p>
+                <p className="text-3xl sm:text-4xl font-bold text-primary-blue">{displayDemos.length}</p>
               </div>
             </Card>
             <Card>

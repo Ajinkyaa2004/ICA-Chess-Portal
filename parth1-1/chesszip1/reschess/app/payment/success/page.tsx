@@ -38,7 +38,7 @@ export default function PaymentSuccessPage() {
               </h1>
 
               <p className="text-gray-600 mb-8">
-                Payment successful! We're creating your student profile and unlocking all features.
+                Payment successful! We&apos;re creating your student profile and unlocking all features.
               </p>
 
               <div className="bg-primary-offwhite rounded-lg p-6 mb-8">
@@ -160,7 +160,7 @@ export default function PaymentSuccessPage() {
                 <ol className="text-sm text-blue-800 text-left space-y-2">
                   <li className="flex items-start">
                     <span className="font-bold mr-2">1.</span>
-                    <span>Go to your parent dashboard to see your student's profile</span>
+                    <span>Go to your parent dashboard to see your student&apos;s profile</span>
                   </li>
                   <li className="flex items-start">
                     <span className="font-bold mr-2">2.</span>

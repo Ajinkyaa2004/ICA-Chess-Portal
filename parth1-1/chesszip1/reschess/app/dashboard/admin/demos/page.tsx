@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { ChevronLeft, Plus, Search, Filter, Edit, Calendar, CheckCircle, XCircle, Clock, Video, User, DollarSign, Download, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Plus, Search, Filter, Edit, Calendar, CheckCircle, Clock, Video, User, Download, AlertCircle } from 'lucide-react';
 
 // Mock coaches with availability
 const coaches = [
@@ -74,7 +74,7 @@ const initialDemos = [
     coach: null,
     coachId: null,
     adminOwner: 'Admin A',
-    adminOwnerId: 1,
+    adminOwnerId: '',
     status: 'pending_assignment',
     attendance: null,
     outcome: null,
@@ -138,7 +138,7 @@ const initialDemos = [
     coach: 'IM Ramesh Kumar',
     coachId: 1,
     adminOwner: 'Admin A',
-    adminOwnerId: 1,
+    adminOwnerId: '',
     status: 'scheduled',
     attendance: null,
     outcome: null,
@@ -180,7 +180,7 @@ const initialDemos = [
     coach: 'IM Ramesh Kumar',
     coachId: 1,
     adminOwner: 'Admin A',
-    adminOwnerId: 1,
+    adminOwnerId: '',
     status: 'completed',
     attendance: 'attended',
     outcome: 'interested',
@@ -243,7 +243,7 @@ const initialDemos = [
     coach: 'FM Priya Sharma',
     coachId: 2,
     adminOwner: 'Admin A',
-    adminOwnerId: 1,
+    adminOwnerId: '',
     status: 'completed',
     attendance: 'no_show',
     outcome: 'not_interested',
@@ -294,14 +294,16 @@ const checkCoachAvailability = (coachId: number, demoDate: string, demoTime: str
 };
 
 export default function AdminDemosPage() {
-  const [demos, setDemos] = useState(initialDemos);
+  const [demos, setDemos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiCoaches, setApiCoaches] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDemo, setSelectedDemo] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'outcome' | 'assign'>('create');
-  const [assignCoachId, setAssignCoachId] = useState<number>(1);
-  const [meetingLink, setMeetingLink] = useState<string>('');
+  const [assignCoachId, setAssignCoachId] = useState<string | number>('');
+  const [meetingLink, setMeetingLink] = useState<string | number>('');
 
   const [demoForm, setDemoForm] = useState({
     student: '',
@@ -311,8 +313,8 @@ export default function AdminDemosPage() {
     studentAge: '',
     date: '',
     time: '',
-    coachId: 1,
-    adminOwnerId: 1,
+    coachId: '',
+    adminOwnerId: '',
     notes: '',
     meetingLink: '',
   });
@@ -324,105 +326,162 @@ export default function AdminDemosPage() {
     paymentStatus: 'pending',
   });
 
-  const pendingAssignments = demos.filter(d => d.status === 'pending_assignment');
-  
+  // Normalize API demo shape to match the UI's expected field names
+  const normalizeDemo = (d: any) => ({
+    ...d,
+    id: d._id,
+    student: d.studentName || '',
+    parent: d.parentName || '',
+    studentAge: d.age || 0,
+    date: d.preferredDate ? d.preferredDate.split('T')[0] : '',
+    time: d.preferredTime || '',
+    coach: d.coachId?.name || '',
+    coachId: d.coachId?._id || d.coachId || null,
+    // Map API statuses to UI statuses
+    status: (() => {
+      const s = d.status;
+      if (s === 'BOOKED' && !d.coachId) return 'pending_assignment';
+      if (s === 'BOOKED') return 'scheduled';
+      if (s === 'ATTENDED') return 'completed';
+      if (s === 'CONVERTED') return 'converted';
+      if (s === 'NOT_INTERESTED') return 'not_interested';
+      if (s === 'INTERESTED') return 'interested';
+      if (s === 'PAYMENT_PENDING') return 'payment_pending';
+      if (s === 'NO_SHOW') return 'no_show';
+      if (s === 'CANCELLED') return 'cancelled';
+      if (s === 'RESCHEDULED') return 'rescheduled';
+      return s?.toLowerCase() || 'scheduled';
+    })(),
+    attendance: d.status === 'ATTENDED' ? 'attended' : d.status === 'NO_SHOW' ? 'no_show' : null,
+    outcome: d.status === 'CONVERTED' ? 'converted' : d.status === 'NOT_INTERESTED' ? 'not_interested' : d.status === 'INTERESTED' ? 'interested' : null,
+    outcomeNotes: d.notes || '',
+    paymentStatus: d.status === 'PAYMENT_PENDING' ? 'pending' : d.status === 'CONVERTED' ? 'paid' : 'pending',
+    adminOwner: '',
+    adminOwnerId: '',
+    meetingLink: null,
+  });
+
+  const fetchDemos = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/demos?limit=100');
+      if (res.ok) {
+        const json = await res.json();
+        setDemos((json.data || json.demos || []).map(normalizeDemo));
+      }
+    } catch (err) {
+      console.error('Failed to fetch demos:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDemos();
+    // Fetch coaches for assignment dropdowns
+    fetch('/api/coaches').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.coaches) setApiCoaches(json.data || json.coaches);
+    }).catch(() => {});
+  }, []);
+
+  const pendingAssignments = demos.filter(d => d.status === 'BOOKED' && !d.coachId);
+
   const filteredDemos = demos.filter(demo => {
-    // Exclude pending assignments from main list
-    if (demo.status === 'pending_assignment') return false;
-    
-    const matchesStatus = filterStatus === 'all' || demo.status === filterStatus;
-    const matchesSearch = 
-      demo.student.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      demo.parent.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || demo.status === filterStatus ||
+      (filterStatus === 'pending_assignment' && demo.status === 'BOOKED' && !demo.coachId) ||
+      (filterStatus === 'scheduled' && demo.status === 'BOOKED' && demo.coachId);
+    const matchesSearch =
+      (demo.studentName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (demo.parentName || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  const handleCreateDemo = () => {
-    const newDemo = {
-      id: demos.length + 1,
-      student: demoForm.student,
-      parent: demoForm.parent,
-      parentPhone: demoForm.parentPhone,
-      parentEmail: demoForm.parentEmail,
-      studentAge: Number(demoForm.studentAge),
-      date: demoForm.date,
-      time: demoForm.time,
-      coach: coaches.find(c => c.id === demoForm.coachId)?.name || '',
-      coachId: demoForm.coachId,
-      adminOwner: adminOwners.find(a => a.id === demoForm.adminOwnerId)?.name || '',
-      adminOwnerId: demoForm.adminOwnerId,
-      status: 'scheduled',
-      attendance: null,
-      outcome: null,
-      outcomeNotes: '',
-      paymentStatus: 'pending',
-      meetingLink: null,
-      notes: demoForm.notes,
+  const handleCreateDemo = async () => {
+    try {
+      const res = await fetch('/api/demos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentName: demoForm.student,
+          parentName: demoForm.parent,
+          parentPhone: demoForm.parentPhone,
+          parentEmail: demoForm.parentEmail,
+          age: Number(demoForm.studentAge),
+          preferredDate: demoForm.date,
+          preferredTime: demoForm.time,
+          coachId: demoForm.coachId || undefined,
+          notes: demoForm.notes,
+        }),
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setDemoForm({ student: '', parent: '', parentPhone: '', parentEmail: '', studentAge: '', date: '', time: '', coachId: '', adminOwnerId: '', notes: '', meetingLink: '' });
+        fetchDemos();
+      }
+    } catch (err) {
+      console.error('Failed to create demo:', err);
+    }
+  };
+
+  const handleEditDemo = async () => {
+    if (!selectedDemo) return;
+    try {
+      const res = await fetch(`/api/demos/${selectedDemo.id || selectedDemo._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentName: demoForm.student,
+          parentName: demoForm.parent,
+          parentPhone: demoForm.parentPhone,
+          parentEmail: demoForm.parentEmail,
+          age: Number(demoForm.studentAge),
+          preferredDate: demoForm.date,
+          preferredTime: demoForm.time,
+          coachId: demoForm.coachId || undefined,
+          notes: demoForm.notes,
+        }),
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setSelectedDemo(null);
+        fetchDemos();
+      }
+    } catch (err) {
+      console.error('Failed to update demo:', err);
+    }
+  };
+
+  const handleSubmitOutcome = async () => {
+    if (!selectedDemo) return;
+    // Map UI outcome values to API status values
+    const statusMap: Record<string, string> = {
+      attended: 'ATTENDED',
+      no_show: 'NO_SHOW',
+      interested: 'INTERESTED',
+      not_interested: 'NOT_INTERESTED',
+      payment_pending: 'PAYMENT_PENDING',
+      converted: 'CONVERTED',
     };
-
-    setDemos([newDemo, ...demos]);
-    setModalOpen(false);
-    setDemoForm({ student: '', parent: '', parentPhone: '', parentEmail: '', studentAge: '', date: '', time: '', coachId: 1, adminOwnerId: 1, notes: '', meetingLink: '' });
-  };
-
-  const handleEditDemo = () => {
-    if (!selectedDemo) return;
-
-    const updated = demos.map(d => 
-      d.id === selectedDemo.id 
-        ? {
-            ...d,
-            student: demoForm.student,
-            parent: demoForm.parent,
-            parentPhone: demoForm.parentPhone,
-            parentEmail: demoForm.parentEmail,
-            studentAge: Number(demoForm.studentAge),
-            date: demoForm.date,
-            time: demoForm.time,
-            coach: coaches.find(c => c.id === demoForm.coachId)?.name || '',
-            coachId: demoForm.coachId,
-            adminOwner: adminOwners.find(a => a.id === demoForm.adminOwnerId)?.name || '',
-            adminOwnerId: demoForm.adminOwnerId,
-            notes: demoForm.notes,
-            meetingLink: demoForm.meetingLink.trim() || null,
-          }
-        : d
-    );
-
-    setDemos(updated as typeof demos);
-    setModalOpen(false);
-    setSelectedDemo(null);
-  };
-
-  const handleSubmitOutcome = () => {
-    if (!selectedDemo) return;
-
-    const updated = demos.map(d => 
-      d.id === selectedDemo.id 
-        ? {
-            ...d,
-            status: 'completed' as const,
-            attendance: outcomeForm.attendance,
-            outcome: outcomeForm.outcome,
-            outcomeNotes: outcomeForm.outcomeNotes,
-            paymentStatus: outcomeForm.paymentStatus,
-          }
-        : d
-    );
-
-    setDemos(updated as typeof demos);
-    setModalOpen(false);
-    setSelectedDemo(null);
-    
-    // Redirect to customer portal to see demo outcomes
-    setTimeout(() => {
-      window.location.href = `/dashboard/customer`;
-    }, 1500);
+    const newStatus = statusMap[outcomeForm.outcome] || 'ATTENDED';
+    try {
+      const res = await fetch(`/api/demos/${selectedDemo.id || selectedDemo._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, notes: outcomeForm.outcomeNotes }),
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setSelectedDemo(null);
+        fetchDemos();
+      }
+    } catch (err) {
+      console.error('Failed to submit outcome:', err);
+    }
   };
 
   const openCreateModal = () => {
     setModalMode('create');
-    setDemoForm({ student: '', parent: '', parentPhone: '', parentEmail: '', studentAge: '', date: '', time: '', coachId: 1, adminOwnerId: 1, notes: '', meetingLink: '' });
+    setDemoForm({ student: '', parent: '', parentPhone: '', parentEmail: '', studentAge: '', date: '', time: '', coachId: '', adminOwnerId: '', notes: '', meetingLink: '' });
     setModalOpen(true);
   };
 
@@ -430,17 +489,17 @@ export default function AdminDemosPage() {
     setModalMode('edit');
     setSelectedDemo(demo);
     setDemoForm({
-      student: demo.student,
-      parent: demo.parent,
-      parentPhone: demo.parentPhone,
-      parentEmail: demo.parentEmail,
-      studentAge: demo.studentAge.toString(),
-      date: demo.date,
-      time: demo.time,
-      coachId: demo.coachId,
-      adminOwnerId: demo.adminOwnerId,
-      notes: demo.notes,
-      meetingLink: demo.meetingLink || '',
+      student: demo.studentName || demo.student || '',
+      parent: demo.parentName || demo.parent || '',
+      parentPhone: demo.parentPhone || '',
+      parentEmail: demo.parentEmail || '',
+      studentAge: (demo.age || demo.studentAge || '').toString(),
+      date: demo.preferredDate ? demo.preferredDate.split('T')[0] : (demo.date || ''),
+      time: demo.preferredTime || demo.time || '',
+      coachId: demo.coachId?._id || demo.coachId || '',
+      adminOwnerId: '',
+      notes: demo.notes || '',
+      meetingLink: '',
     });
     setModalOpen(true);
   };
@@ -460,49 +519,50 @@ export default function AdminDemosPage() {
   const openAssignCoachModal = (demo: any) => {
     setModalMode('assign');
     setSelectedDemo(demo);
-    setAssignCoachId(1);
+    setAssignCoachId('');
     setMeetingLink('');
     setModalOpen(true);
   };
 
-  const handleAssignCoach = () => {
+  const handleAssignCoach = async () => {
     if (!selectedDemo) return;
-
-    const updated = demos.map(d => 
-      d.id === selectedDemo.id 
-        ? {
-            ...d,
-            coach: coaches.find(c => c.id === assignCoachId)?.name || '',
-            coachId: assignCoachId,
-            status: 'scheduled' as const,
-            meetingLink: meetingLink.trim() || null,
-          }
-        : d
-    );
-
-    setDemos(updated as typeof demos);
-    setModalOpen(false);
-    setSelectedDemo(null);
-    setMeetingLink('');
+    try {
+      const res = await fetch(`/api/demos/${selectedDemo.id || selectedDemo._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coachId: assignCoachId }),
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setSelectedDemo(null);
+        setMeetingLink('');
+        fetchDemos();
+      }
+    } catch (err) {
+      console.error('Failed to assign coach:', err);
+    }
   };
 
   const exportDemos = () => {
-    // Mock CSV export
-    const csv = filteredDemos.map(d => 
-      `${d.student},${d.parent},${d.date},${d.time},${d.coach},${d.status},${d.attendance || ''},${d.outcome || ''}`
+    const csv = filteredDemos.map(d =>
+      `${d.studentName || ''},${d.parentName || ''},${d.preferredDate || ''},${d.preferredTime || ''},${d.coachId?.name || ''},${d.status},`
     ).join('\n');
-    console.log('Exporting:', csv);
-    alert('Demo data exported! (Mock functionality)');
+    const blob = new Blob([`Student,Parent,Date,Time,Coach,Status\n${csv}`], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'demos.csv';
+    a.click();
   };
 
-  const pendingOutcomes = demos.filter(d => d.status === 'completed' && !d.outcome).length;
+  const pendingOutcomesCount = demos.filter(d => d.status === 'ATTENDED').length;
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin" userRole="System Owner" />
+        <DashboardHeader userName="Admin" userRole="admin" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}
@@ -532,12 +592,12 @@ export default function AdminDemosPage() {
           </div>
 
           {/* Pending Outcomes Alert */}
-          {pendingOutcomes > 0 && (
+          {pendingOutcomesCount > 0 && (
             <Card className="mb-4 bg-red-50 border-red-200">
               <div className="flex items-start space-x-3">
                 <Clock className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-red-900 mb-1">⚠️ {pendingOutcomes} Demo Outcomes Pending</h4>
+                  <h4 className="font-semibold text-red-900 mb-1">⚠️ {pendingOutcomesCount} Demo Outcomes Pending</h4>
                   <p className="text-sm text-red-700">
                     <strong>Demo outcomes are MANDATORY.</strong> Submit outcomes for all completed demos immediately.
                   </p>
@@ -1074,7 +1134,7 @@ export default function AdminDemosPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assign Coach *</label>
                     <select
                       value={demoForm.coachId}
-                      onChange={(e) => setDemoForm({ ...demoForm, coachId: Number(e.target.value) })}
+                      onChange={(e) => setDemoForm({ ...demoForm, coachId: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
                     >
                       {coaches.map(coach => (
@@ -1086,7 +1146,7 @@ export default function AdminDemosPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assign Admin Owner *</label>
                     <select
                       value={demoForm.adminOwnerId}
-                      onChange={(e) => setDemoForm({ ...demoForm, adminOwnerId: Number(e.target.value) })}
+                      onChange={(e) => setDemoForm({ ...demoForm, adminOwnerId: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue"
                     >
                       {adminOwners.map(admin => (

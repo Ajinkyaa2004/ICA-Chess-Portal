@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button';
 import { Plus, Edit, Trash2, Search, Mail, Phone, Star, Calendar, Award, Users } from 'lucide-react';
 
 // Mock coaches data
-const initialCoaches = [
+const _initialCoaches = [
   {
     id: 1,
     name: 'Rajesh Gupta',
@@ -109,14 +109,15 @@ const initialCoaches = [
 ];
 
 export default function AdminCoachesPage() {
-  const [coaches, setCoaches] = useState(initialCoaches);
+  const [coaches, setCoaches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<any>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -129,11 +130,40 @@ export default function AdminCoachesPage() {
     status: 'active'
   });
 
+  const normalizeCoach = (c: any) => ({
+    ...c,
+    id: c._id,
+    specialization: Array.isArray(c.specialization) ? c.specialization.join(', ') : c.specialization || '',
+    experience: c.experience ? `${c.experience} years` : '',
+    joiningDate: c.createdAt ? c.createdAt.split('T')[0] : '',
+    status: c.isActive ? 'active' : 'inactive',
+    totalStudents: 0,
+    monthlyRate: c.monthlyRate || 0,
+    ratePerSession: c.ratePerSession || 0,
+  });
+
+  const fetchCoaches = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/coaches?limit=100');
+      if (res.ok) {
+        const json = await res.json();
+        setCoaches((json.data || json.coaches || []).map(normalizeCoach));
+      }
+    } catch (err) {
+      console.error('Failed to fetch coaches:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCoaches(); }, []);
+
   const filteredCoaches = coaches.filter(coach => {
-    const matchesSearch = 
-      coach.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      coach.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      coach.specialization.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      (coach.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (coach.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (coach.specialization || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === 'all' || coach.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -152,61 +182,60 @@ export default function AdminCoachesPage() {
     });
   };
 
-  const handleCreateCoach = (e: React.FormEvent) => {
+  const handleCreateCoach = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const newCoach = {
-      id: coaches.length + 1,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      specialization: formData.specialization,
-      rating: 4.5,
-      experience: formData.experience,
-      joiningDate: new Date().toISOString().split('T')[0],
-      status: formData.status as 'active' | 'inactive',
-      totalStudents: 0,
-      monthlyRate: parseInt(formData.monthlyRate),
-      ratePerSession: parseInt(formData.ratePerSession),
-      availability: {
-        monday: [],
-        tuesday: [],
-        wednesday: [],
-        thursday: [],
-        friday: [],
-        saturday: [],
-        sunday: []
-      },
-      bio: formData.bio
-    };
-
-    setCoaches([...coaches, newCoach]);
-    setShowCreateModal(false);
-    resetForm();
-    setToast({ message: 'Coach added successfully!', type: 'success' });
-    setTimeout(() => setToast(null), 3000);
+    try {
+      const res = await fetch('/api/coaches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          specialization: [formData.specialization],
+          experience: parseInt(formData.experience) || 0,
+          monthlyRate: parseInt(formData.monthlyRate) || 0,
+          ratePerSession: parseInt(formData.ratePerSession) || 0,
+          bio: formData.bio,
+        }),
+      });
+      if (res.ok) {
+        setShowCreateModal(false);
+        resetForm();
+        fetchCoaches();
+        setToast({ message: 'Coach added successfully!', type: 'success' });
+        setTimeout(() => setToast(null), 3000);
+      } else {
+        setToast({ message: 'Failed to add coach', type: 'error' });
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to create coach:', err);
+    }
   };
 
-  const handleEditCoach = (e: React.FormEvent) => {
+  const handleEditCoach = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    setCoaches(coaches.map(coach => 
-      coach.id === selectedCoach.id 
-        ? { 
-            ...coach, 
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            specialization: formData.specialization,
-            experience: formData.experience,
-            monthlyRate: parseInt(formData.monthlyRate),
-            ratePerSession: parseInt(formData.ratePerSession),
-            bio: formData.bio,
-            status: formData.status as 'active' | 'inactive'
-          } 
-        : coach
-    ));
-    
+    if (!selectedCoach) return;
+    try {
+      const res = await fetch(`/api/coaches/${selectedCoach.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          specialization: [formData.specialization],
+          experience: parseInt(formData.experience) || 0,
+          monthlyRate: parseInt(formData.monthlyRate) || 0,
+          ratePerSession: parseInt(formData.ratePerSession) || 0,
+          bio: formData.bio,
+          isActive: formData.status === 'active',
+        }),
+      });
+      if (res.ok) { fetchCoaches(); }
+    } catch (err) {
+      console.error('Failed to update coach:', err);
+    }
     setShowEditModal(false);
     setSelectedCoach(null);
     resetForm();
@@ -214,11 +243,18 @@ export default function AdminCoachesPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleDeleteCoach = (id: number) => {
-    if (confirm('Are you sure you want to delete this coach? This action cannot be undone.')) {
-      setCoaches(coaches.filter(coach => coach.id !== id));
-      setToast({ message: 'Coach deleted successfully!', type: 'success' });
-      setTimeout(() => setToast(null), 3000);
+  const handleDeleteCoach = async (id: string) => {
+    if (confirm('Are you sure you want to deactivate this coach?')) {
+      try {
+        const res = await fetch(`/api/coaches/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          fetchCoaches();
+          setToast({ message: 'Coach deactivated successfully!', type: 'success' });
+          setTimeout(() => setToast(null), 3000);
+        }
+      } catch (err) {
+        console.error('Failed to delete coach:', err);
+      }
     }
   };
 
@@ -243,7 +279,7 @@ export default function AdminCoachesPage() {
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin User" userRole="Admin" />
+        <DashboardHeader userName="Admin" userRole="admin" />
         
         <main className="p-4 sm:p-6 lg:p-8 mt-16">
           {/* Toast Notification */}
@@ -335,7 +371,7 @@ export default function AdminCoachesPage() {
                 <div>
                   <p className="text-gray-600 text-sm">Avg Rating</p>
                   <p className="text-2xl font-bold text-yellow-600">
-                    {(coaches.reduce((sum, c) => sum + c.rating, 0) / coaches.length).toFixed(1)}
+                    {coaches.length ? (coaches.reduce((sum, c) => sum + (c.rating || 0), 0) / coaches.length).toFixed(1) : '0.0'}
                   </p>
                 </div>
                 <Star className="w-10 h-10 text-yellow-600 opacity-20" />

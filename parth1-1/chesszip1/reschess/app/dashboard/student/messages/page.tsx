@@ -5,7 +5,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { Search, Send, Paperclip } from 'lucide-react';
+import { Send, Paperclip } from 'lucide-react';
 import { useState } from 'react';
 
 const messages = [
@@ -51,10 +51,10 @@ export default function StudentMessagesPage() {
 
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
-      <Sidebar role="student" />
+      <Sidebar role="customer" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Arjun Patel" userRole="student" />
+        <DashboardHeader userName="Student" userRole="customer" />
         
         <main className="p-6">
           <div className="mb-6">

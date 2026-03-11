@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
@@ -21,35 +22,44 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Demo credentials for testing
-    const demoAccounts: Record<string, { password: string; hasStudent: boolean; dashboard: string }> = {
-      // Customer with demo-only access (no student created yet)
-      'demo@example.com': { password: 'demo123', hasStudent: false, dashboard: '/dashboard/customer' },
-      // Student Portal
-      'portal@demo.com': { password: 'portal123', hasStudent: true, dashboard: '/dashboard/student' },
-      // Coach account
-      'coach@demo.com': { password: 'coach123', hasStudent: false, dashboard: '/dashboard/coach' },
-      // Admin account
-      'admin@demo.com': { password: 'admin123', hasStudent: false, dashboard: '/dashboard/admin' },
-    };
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      // Normalize email to lowercase for comparison
-      const normalizedEmail = formData.email.toLowerCase().trim();
-      const account = demoAccounts[normalizedEmail];
-      
-      if (account && formData.password === account.password) {
-        setToast({ message: 'Login successful!', type: 'success' });
-        setTimeout(() => {
-          router.push(account.dashboard);
-        }, 1000);
-      } else {
-        setToast({ message: 'Invalid email or password. Try demo accounts below.', type: 'error' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setToast({ message: data.error || 'Login failed', type: 'error' });
+        setIsLoading(false);
+        return;
       }
-    }, 1000);
+
+      setToast({ message: 'Login successful!', type: 'success' });
+
+      // Redirect based on role
+      const dashboardMap: Record<string, string> = {
+        ADMIN: '/dashboard/admin',
+        COACH: '/dashboard/coach',
+        CUSTOMER: '/dashboard/student',
+      };
+
+      const dashboard = dashboardMap[data.user.role] || '/dashboard/student';
+
+      setTimeout(() => {
+        router.push(dashboard);
+      }, 500);
+    } catch {
+      setToast({ message: 'Network error. Please try again.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,11 +74,11 @@ export default function LoginPage() {
       
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
-          <img 
+          <Image 
             src="/imgs.png" 
             alt="Indian Chess Academy" 
             className="mx-auto w-20 h-20 mb-4 object-contain"
-          />
+          width={80} height={80} />
           <h1 className="text-3xl font-heading font-bold text-primary-blue mb-2">
             Welcome Back
           </h1>
@@ -125,34 +135,19 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm font-semibold text-gray-700 mb-3 text-center">Demo Accounts (For Testing)</p>
+          <p className="text-sm font-semibold text-gray-700 mb-3 text-center">Test Accounts (Password: Welcome@123)</p>
           <div className="space-y-2 text-xs">
-            <div className="p-2 bg-yellow-50 rounded border border-yellow-200">
-              <p className="font-semibold text-yellow-900">Customer (Demo Only - Before Payment):</p>
-              <p className="text-yellow-700">Email: demo@example.com</p>
-              <p className="text-yellow-700">Password: demo123</p>
-              <p className="text-xs text-yellow-600 mt-1">Limited access - demo session only</p>
+            <div className="p-2 bg-orange-50 rounded border border-orange-200">
+              <p className="font-semibold text-orange-900">Admin:</p>
+              <p className="text-orange-700">admin@ica.com</p>
             </div>
-            <div className="p-3 bg-blue-50 rounded border border-blue-200">
-              <p className="font-semibold text-blue-900 text-center mb-2">🎓 Student Portal</p>
-              <div className="text-center">
-                <p className="text-blue-700 font-medium">Email: portal@demo.com</p>
-                <p className="text-blue-700 font-medium">Password: portal123</p>
-              </div>
-              <p className="text-xs text-blue-600 mt-2 text-center">
-                ✨ Student dashboard with lessons, progress, and quick actions<br/>
-                Request review sessions and access batch chat
-              </p>
+            <div className="p-2 bg-purple-50 rounded border border-purple-200">
+              <p className="font-semibold text-purple-900">Coach:</p>
+              <p className="text-purple-700">coach.ramesh@ica.com</p>
             </div>
-            <div className="p-2 bg-purple-50 rounded">
-              <p className="font-semibold text-purple-900">Coach Portal:</p>
-              <p className="text-purple-700">Email: coach@demo.com</p>
-              <p className="text-purple-700">Password: coach123</p>
-            </div>
-            <div className="p-2 bg-orange-50 rounded">
-              <p className="font-semibold text-orange-900">Admin Portal:</p>
-              <p className="text-orange-700">Email: admin@demo.com</p>
-              <p className="text-orange-700">Password: admin123</p>
+            <div className="p-2 bg-blue-50 rounded border border-blue-200">
+              <p className="font-semibold text-blue-900">Customer (Student/Parent):</p>
+              <p className="text-blue-700">arjun.parent@email.com</p>
             </div>
           </div>
         </div>

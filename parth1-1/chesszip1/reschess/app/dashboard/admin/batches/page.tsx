@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -13,8 +13,6 @@ import {
   Edit, 
   Trash2, 
   Users, 
-  Calendar, 
-  Clock, 
   Search,
   Filter,
   MoreVertical,
@@ -124,7 +122,8 @@ const availableStudents = [
 ];
 
 export default function BatchManagementPage() {
-  const [batches, setBatches] = useState(initialBatches);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -133,7 +132,46 @@ export default function BatchManagementPage() {
   const [showRemoveStudentModal, setShowRemoveStudentModal] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<any>(null);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
-  const [students, setStudents] = useState(availableStudents);
+  const [students, setStudents] = useState<any[]>([]);
+  const [apiCoaches, setApiCoaches] = useState<any[]>([]);
+
+  const normalizeBatch = (b: any) => ({
+    ...b,
+    id: b._id,
+    coach: b.coachId?.name || '',
+    coachId: b.coachId?._id || b.coachId || '',
+    students: b.studentIds?.length || 0,
+    schedule: b.schedule?.map((s: any) => `${s.day} ${s.startTime}-${s.endTime}`).join(', ') || '',
+    status: b.status === 'ACTIVE' ? 'Active' : b.status === 'PAUSED' ? 'Paused' : b.status === 'COMPLETED' ? 'Completed' : b.status,
+    color: 'bg-blue-500',
+  });
+
+  const fetchBatches = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/batches');
+      if (res.ok) {
+        const json = await res.json();
+        setBatches((json.data || json.batches || []).map(normalizeBatch));
+      }
+    } catch (err) {
+      console.error('Failed to fetch batches:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBatches();
+    // Fetch coaches for dropdown
+    fetch('/api/coaches?limit=100').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.coaches) setApiCoaches((json.data || json.coaches).map((c: any) => ({ id: c._id || c.id, name: c.name, rating: c.rating || 0 })));
+    }).catch(() => {});
+    // Fetch available students for assignment
+    fetch('/api/students?limit=100').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.students) setStudents((json.data || json.students).map((s: any) => ({ ...s, id: s._id || s.id, name: s.name, parent: s.parentName || '', phone: s.parentPhone || '', rating: 0, currentBatch: (s.batchIds && s.batchIds[0]?._id || s.batchIds && s.batchIds[0]) || null })));
+    }).catch(() => {});
+  }, []);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -160,79 +198,78 @@ export default function BatchManagementPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleCreateBatch = () => {
-    if (!formData.name || !formData.coachId || !formData.schedule) {
+  const handleCreateBatch = async () => {
+    if (!formData.name || !formData.coachId) {
       setToast({ message: 'Please fill in all required fields', type: 'error' });
       return;
     }
-
-    const coach = coaches.find(c => c.id === formData.coachId);
-    const newBatch = {
-      id: Date.now(),
-      name: formData.name,
-      level: formData.level,
-      type: formData.type,
-      coach: coach?.name || '',
-      coachId: formData.coachId,
-      students: 0,
-      maxStudents: formData.maxStudents,
-      schedule: formData.schedule,
-      timezone: formData.timezone,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      status: 'Starting Soon',
-      description: formData.description,
-      ratingRange: formData.ratingRange,
-      ageRange: formData.ageRange,
-      color: formData.color
-    };
-
-    setBatches([...batches, newBatch]);
-    setShowCreateModal(false);
-    resetForm();
-    setToast({ message: 'Batch created successfully!', type: 'success' });
+    try {
+      const res = await fetch('/api/batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          level: formData.level,
+          type: formData.type === 'Group Session' ? 'group' : '1-1',
+          coachId: formData.coachId,
+          maxStudents: formData.maxStudents,
+          description: formData.description,
+        }),
+      });
+      if (res.ok) {
+        setShowCreateModal(false);
+        resetForm();
+        fetchBatches();
+        setToast({ message: 'Batch created successfully!', type: 'success' });
+      } else {
+        setToast({ message: 'Failed to create batch', type: 'error' });
+      }
+    } catch (err) {
+      console.error('Failed to create batch:', err);
+    }
   };
 
-  const handleEditBatch = () => {
-    if (!formData.name || !formData.coachId || !formData.schedule) {
+  const handleEditBatch = async () => {
+    if (!formData.name || !formData.coachId) {
       setToast({ message: 'Please fill in all required fields', type: 'error' });
       return;
     }
-
-    const coach = coaches.find(c => c.id === formData.coachId);
-    const updatedBatches = batches.map(batch => 
-      batch.id === selectedBatch.id 
-        ? {
-            ...batch,
-            name: formData.name,
-            level: formData.level,
-            type: formData.type,
-            coach: coach?.name || '',
-            coachId: formData.coachId,
-            maxStudents: formData.maxStudents,
-            schedule: formData.schedule,
-            timezone: formData.timezone,
-            startDate: formData.startDate,
-            endDate: formData.endDate,
-            description: formData.description,
-            ratingRange: formData.ratingRange,
-            ageRange: formData.ageRange,
-            color: formData.color
-          }
-        : batch
-    );
-
-    setBatches(updatedBatches);
+    try {
+      const res = await fetch(`/api/batches/${selectedBatch.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          level: formData.level,
+          type: formData.type === 'Group Session' ? 'group' : '1-1',
+          coachId: formData.coachId,
+          maxStudents: formData.maxStudents,
+          description: formData.description,
+        }),
+      });
+      if (res.ok) {
+        fetchBatches();
+        setToast({ message: 'Batch updated successfully!', type: 'success' });
+      }
+    } catch (err) {
+      console.error('Failed to update batch:', err);
+    }
     setShowEditModal(false);
     setSelectedBatch(null);
     resetForm();
-    setToast({ message: 'Batch updated successfully!', type: 'success' });
   };
 
-  const handleDeleteBatch = (batchId: number) => {
-    if (confirm('Are you sure you want to delete this batch? This action cannot be undone.')) {
-      setBatches(batches.filter(batch => batch.id !== batchId));
-      setToast({ message: 'Batch deleted successfully!', type: 'success' });
+  const handleDeleteBatch = async (batchId: string) => {
+    if (confirm('Are you sure you want to delete this batch?')) {
+      try {
+        const res = await fetch(`/api/batches/${batchId}`, { method: 'DELETE' });
+        if (res.ok) {
+          fetchBatches();
+          setToast({ message: 'Batch deleted successfully!', type: 'success' });
+        }
+      } catch (err) {
+        console.error('Failed to delete batch:', err);
+      }
     }
   };
 
@@ -248,57 +285,63 @@ export default function BatchManagementPage() {
     setShowRemoveStudentModal(true);
   };
 
-  const handleRemoveStudentFromBatch = (studentId: string) => {
+  const handleRemoveStudentFromBatch = async (studentId: string) => {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
     if (confirm(`Remove ${student.name} from ${selectedBatch.name}?`)) {
-      // Update student's current batch to null
-      setStudents(students.map(s => 
-        s.id === studentId ? { ...s, currentBatch: null } : s
-      ));
-
-      // Decrement batch student count
-      setBatches(batches.map(b => 
-        b.id === selectedBatch.id ? { ...b, students: Math.max(0, b.students - 1) } : b
-      ));
-
-      setToast({ message: `${student.name} removed from ${selectedBatch.name}!`, type: 'success' });
+      try {
+        const res = await fetch(`/api/batches/${selectedBatch.id}/students`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId }),
+        });
+        if (res.ok) {
+          setStudents(students.map(s => s.id === studentId ? { ...s, currentBatch: null } : s));
+          setBatches(batches.map(b => b.id === selectedBatch.id ? { ...b, students: Math.max(0, b.students - 1) } : b));
+          setToast({ message: `${student.name} removed from ${selectedBatch.name}!`, type: 'success' });
+        } else {
+          const err = await res.json();
+          setToast({ message: err.error || 'Failed to remove student', type: 'error' });
+        }
+      } catch {
+        setToast({ message: 'Network error', type: 'error' });
+      }
     }
   };
 
-  const handleAddStudentToBatch = (studentId: string) => {
+  const handleAddStudentToBatch = async (studentId: string) => {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
-    // Check if student is already in another batch
     if (student.currentBatch && student.currentBatch !== selectedBatch.id) {
       if (!confirm(`${student.name} is already enrolled in another batch. Do you want to transfer them to this batch?`)) {
         return;
       }
-      // Decrement student count from old batch
-      setBatches(batches.map(b => 
-        b.id === student.currentBatch ? { ...b, students: b.students - 1 } : b
-      ));
     }
 
-    // Check if batch is full
     if (selectedBatch.students >= selectedBatch.maxStudents) {
       setToast({ message: 'Batch is full! Cannot add more students.', type: 'error' });
       return;
     }
 
-    // Update student's current batch
-    setStudents(students.map(s => 
-      s.id === studentId ? { ...s, currentBatch: selectedBatch.id } : s
-    ));
-
-    // Increment batch student count
-    setBatches(batches.map(b => 
-      b.id === selectedBatch.id ? { ...b, students: b.students + 1 } : b
-    ));
-
-    setToast({ message: `${student.name} added to ${selectedBatch.name}!`, type: 'success' });
+    try {
+      const res = await fetch(`/api/batches/${selectedBatch.id}/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      });
+      if (res.ok) {
+        setStudents(students.map(s => s.id === studentId ? { ...s, currentBatch: selectedBatch.id } : s));
+        setBatches(batches.map(b => b.id === selectedBatch.id ? { ...b, students: b.students + 1 } : b));
+        setToast({ message: `${student.name} added to ${selectedBatch.name}!`, type: 'success' });
+      } else {
+        const err = await res.json();
+        setToast({ message: err.error || 'Failed to add student', type: 'error' });
+      }
+    } catch {
+      setToast({ message: 'Network error', type: 'error' });
+    }
   };
 
   const openEditModal = (batch: any) => {
@@ -354,7 +397,7 @@ export default function BatchManagementPage() {
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin User" userRole="Admin" />
+        <DashboardHeader userName="Admin User" userRole="admin" />
         
         {toast && (
           <Toast
@@ -566,9 +609,9 @@ export default function BatchManagementPage() {
                     className="input-field"
                   >
                     <option value="">Select a coach</option>
-                    {coaches.map((coach) => (
+                    {(apiCoaches.length > 0 ? apiCoaches : coaches).map((coach) => (
                       <option key={coach.id} value={coach.id}>
-                        {coach.name} (Rating: {coach.rating})
+                        {coach.name} {coach.rating ? `(Rating: ${coach.rating})` : ''}
                       </option>
                     ))}
                   </select>

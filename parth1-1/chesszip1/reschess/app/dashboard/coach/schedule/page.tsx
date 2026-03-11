@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Video, Users, XCircle, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Video, XCircle, Plus } from 'lucide-react';
 
 // Mock classes - Only assigned ones
 const assignedClasses = [
@@ -86,16 +86,32 @@ const initialBlockedSlots = [
 ];
 
 export default function CoachSchedulePage() {
-  const [currentDate, setCurrentDate] = useState(new Date('2026-01-18'));
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [blockedSlots, setBlockedSlots] = useState(initialBlockedSlots);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
-  const [blockForm, setBlockForm] = useState({
-    date: '',
-    time: '',
-    duration: '1 hour',
-    reason: '',
-  });
+  const [blockForm, setBlockForm] = useState({ date: '', time: '', duration: '1 hour', reason: '' });
+  const [apiLessons, setApiLessons] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/coach/schedule').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.data || json?.lessons) setApiLessons(json.data || json.lessons);
+    }).catch(() => {});
+  }, []);
+
+  const displayClasses = apiLessons.length > 0
+    ? apiLessons.map((l: any) => ({
+        id: l._id,
+        type: l.batchId?.type === '1-1' ? '1-1' : 'Group',
+        student: l.batchId?.name || 'Batch',
+        batchName: l.batchId?.name || null,
+        date: l.date ? l.date.split('T')[0] : '',
+        time: l.startTime || '',
+        duration: l.startTime && l.endTime ? `${l.startTime}-${l.endTime}` : '60 min',
+        status: l.status === 'SCHEDULED' ? 'scheduled' : l.status?.toLowerCase() || 'scheduled',
+        meetingLink: l.meetingLink || null,
+      }))
+    : assignedClasses;
 
   // Get week dates
   const getWeekDates = (date: Date) => {
@@ -145,7 +161,7 @@ export default function CoachSchedulePage() {
 
   const getClassesForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return assignedClasses.filter(c => c.date === dateStr);
+    return displayClasses.filter((c: any) => c.date === dateStr);
   };
 
   const getBlockedSlotsForDate = (date: Date) => {
@@ -163,7 +179,7 @@ export default function CoachSchedulePage() {
       <Sidebar role="coach" />
       
       <div className="flex-1">
-        <DashboardHeader userName="IM Ramesh Kumar" userRole="Coach" />
+        <DashboardHeader userName="Coach" userRole="coach" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           {/* Header */}
@@ -289,7 +305,7 @@ export default function CoachSchedulePage() {
           <Card className="mt-6">
             <h3 className="text-lg font-heading font-semibold text-primary-blue mb-4">Upcoming Classes</h3>
             <div className="space-y-3">
-              {assignedClasses.slice(0, 5).map(cls => (
+              {displayClasses.slice(0, 5).map((cls: any) => (
                 <div key={cls.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-primary-offwhite rounded-lg">
                   <div className="flex items-start sm:items-center space-x-3 min-w-0 flex-1">
                     <div className="text-center flex-shrink-0">

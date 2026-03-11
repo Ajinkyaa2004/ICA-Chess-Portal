@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Trophy, Users, Calendar, TrendingUp } from 'lucide-react';
 
 export default function LandingPage() {
@@ -9,11 +10,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 sm:h-18 lg:h-20">
             <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-              <img 
+              <Image 
                 src="/imgs.png" 
                 alt="Indian Chess Academy" 
                 className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 flex-shrink-0 object-contain"
-              />
+              width={80} height={80} />
               <h1 className="text-lg sm:text-2xl font-heading font-bold text-primary-blue truncate">
                 Indian Chess Academy
               </h1>
@@ -40,11 +41,11 @@ export default function LandingPage() {
       <section className="bg-gradient-to-br from-primary-blue to-primary-olive text-white py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <img 
+            <Image 
               src="/imgs.png" 
               alt="Indian Chess Academy" 
               className="mx-auto w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 mb-4 sm:mb-6 object-contain"
-            />
+            width={80} height={80} />
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-bold mb-4 sm:mb-6 px-4">
               Master Chess with India's Best
             </h1>

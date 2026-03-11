@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -47,12 +48,27 @@ const studyMaterials = [
 ];
 
 export default function StudentStudyPage() {
+  const [apiMaterials, setApiMaterials] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/customer/study-materials').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.materials) setApiMaterials(json.materials);
+    }).catch(() => {});
+  }, []);
+
+  const displayMaterials = apiMaterials.length > 0
+    ? apiMaterials.map((m: any) => ({
+        id: m._id, title: m.title, type: m.fileUrl?.match(/\.(mp4|webm)$/i) ? 'Video' : 'PDF',
+        category: m.category || 'General', size: '', assignedBy: m.uploadedBy?.name || 'Coach', dueDate: m.createdAt || '',
+      }))
+    : studyMaterials;
+
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
-      <Sidebar role="student" />
+      <Sidebar role="customer" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Arjun Patel" userRole="student" />
+        <DashboardHeader userName="Student" userRole="customer" />
         
         <main className="p-6">
           <h1 className="text-3xl font-heading font-bold text-primary-blue mb-6">
@@ -62,7 +78,7 @@ export default function StudentStudyPage() {
           <Card>
             <h3 className="text-xl font-heading font-semibold mb-4">Assigned Materials</h3>
             <div className="space-y-3">
-              {studyMaterials.map((material) => (
+              {displayMaterials.map((material: any) => (
                 <div key={material.id} className="flex items-center justify-between p-4 bg-primary-offwhite rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-primary-orange bg-opacity-10 rounded-lg flex items-center justify-center">

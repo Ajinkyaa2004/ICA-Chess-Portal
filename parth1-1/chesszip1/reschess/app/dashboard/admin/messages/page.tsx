@@ -7,7 +7,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { ChevronLeft, Search, Send, Paperclip, Shield, Eye, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Search, Send, Paperclip, Shield } from 'lucide-react';
 
 // Admin can 1-1 chat with coaches and parents
 const conversations = [
@@ -113,7 +113,7 @@ export default function AdminMessagesPage() {
       <Sidebar role="admin" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Admin" userRole="System Owner" />
+        <DashboardHeader userName="Admin" userRole="admin" />
         
         <main className="p-3 sm:p-4 lg:p-6">
           <div className="mb-4 sm:mb-6">

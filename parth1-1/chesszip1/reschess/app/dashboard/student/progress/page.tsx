@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Card from '@/components/ui/Card';
@@ -34,12 +35,30 @@ const studyMaterialPercentage = ((studyMaterialsAccessed / studyMaterialsAssigne
 const overallProgress = ((parseFloat(attendancePercentage) + parseFloat(studyMaterialPercentage)) / 2).toFixed(1);
 
 export default function StudentProgressPage() {
+  const [apiProgress, setApiProgress] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/customer/progress').then(r => r.ok ? r.json() : null).then(json => {
+      if (json?.progress) setApiProgress(json.progress);
+    }).catch(() => {});
+  }, []);
+
+  const stats = {
+    totalSessions: apiProgress?.totalSessions ?? totalSessions,
+    attendedSessions: apiProgress?.attendedSessions ?? attendedSessions,
+    attendancePercentage: apiProgress?.attendancePercentage ?? attendancePercentage,
+    studyMaterialsAssigned: apiProgress?.studyMaterialsAssigned ?? studyMaterialsAssigned,
+    studyMaterialsAccessed: apiProgress?.studyMaterialsAccessed ?? studyMaterialsAccessed,
+    studyMaterialPercentage: apiProgress?.studyMaterialPercentage ?? studyMaterialPercentage,
+    overallProgress: apiProgress?.overallProgress ?? overallProgress,
+  };
+
   return (
     <div className="flex min-h-screen bg-primary-offwhite overflow-x-hidden">
-      <Sidebar role="student" />
+      <Sidebar role="customer" />
       
       <div className="flex-1">
-        <DashboardHeader userName="Arjun Patel" userRole="student" />
+        <DashboardHeader userName="Student" userRole="customer" />
         
         <main className="p-6">
           <h1 className="text-3xl font-heading font-bold text-primary-blue mb-6">
@@ -53,8 +72,8 @@ export default function StudentProgressPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-gray-600 text-sm">Attendance Rate</p>
-                  <p className="text-4xl font-bold text-primary-blue">{attendancePercentage}%</p>
-                  <p className="text-gray-500 text-sm mt-1">{attendedSessions} of {totalSessions} sessions</p>
+                  <p className="text-4xl font-bold text-primary-blue">{stats.attendancePercentage}%</p>
+                  <p className="text-gray-500 text-sm mt-1">{stats.attendedSessions} of {stats.totalSessions} sessions</p>
                 </div>
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                   <Calendar className="w-8 h-8 text-green-600" />
@@ -64,7 +83,7 @@ export default function StudentProgressPage() {
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-green-600 h-3 rounded-full transition-all"
-                  style={{ width: `${attendancePercentage}%` }}
+                  style={{ width: `${stats.attendancePercentage}%` }}
                 />
               </div>
             </Card>
@@ -74,8 +93,8 @@ export default function StudentProgressPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-gray-600 text-sm">Study Material</p>
-                  <p className="text-4xl font-bold text-primary-blue">{studyMaterialPercentage}%</p>
-                  <p className="text-gray-500 text-sm mt-1">{studyMaterialsAccessed} of {studyMaterialsAssigned} accessed</p>
+                  <p className="text-4xl font-bold text-primary-blue">{stats.studyMaterialPercentage}%</p>
+                  <p className="text-gray-500 text-sm mt-1">{stats.studyMaterialsAccessed} of {stats.studyMaterialsAssigned} accessed</p>
                 </div>
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
                   <BookOpen className="w-8 h-8 text-blue-600" />
@@ -85,7 +104,7 @@ export default function StudentProgressPage() {
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-blue-600 h-3 rounded-full transition-all"
-                  style={{ width: `${studyMaterialPercentage}%` }}
+                  style={{ width: `${stats.studyMaterialPercentage}%` }}
                 />
               </div>
             </Card>
@@ -95,7 +114,7 @@ export default function StudentProgressPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-gray-600 text-sm">Overall Progress</p>
-                  <p className="text-4xl font-bold text-primary-orange">{overallProgress}%</p>
+                  <p className="text-4xl font-bold text-primary-orange">{stats.overallProgress}%</p>
                   <p className="text-gray-500 text-sm mt-1">Combined score</p>
                 </div>
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
@@ -106,7 +125,7 @@ export default function StudentProgressPage() {
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-primary-orange h-3 rounded-full transition-all"
-                  style={{ width: `${overallProgress}%` }}
+                  style={{ width: `${stats.overallProgress}%` }}
                 />
               </div>
             </Card>
