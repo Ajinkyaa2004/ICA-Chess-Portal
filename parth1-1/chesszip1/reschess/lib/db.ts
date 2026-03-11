@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+// Register all Mongoose models so populate() works in serverless cold starts
+import '@/lib/models';
 
 interface MongooseCache {
   conn: typeof mongoose | null;
